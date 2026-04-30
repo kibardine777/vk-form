@@ -3,27 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 2.3</title>
+    <title>Конструктор заявок 3.0 (Мультиформы)</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --vk-blue: #0077FF; --bg-gray: #EBEDF0; --text-main: #000; --text-soft: #818C99; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; display: flex; justify-content: center; color: var(--text-main); }
         .container { background: #fff; padding: 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: center; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         img.banner { width: 100%; height: auto; min-height: 100px; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: #f0f0f0; display: block; }
         h2 { margin: 0 0 8px; font-size: 20px; text-align: left; }
         p.desc { color: var(--text-soft); font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-align: left; }
         label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; }
-        input, select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #DCE1E6; box-sizing: border-box; font-size: 15px; background: #F2F3F5; }
+        input[type="text"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #DCE1E6; box-sizing: border-box; font-size: 15px; background: #F2F3F5; }
         button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 16px; }
         .btn-main { background: var(--vk-blue); color: #fff; }
-        .btn-add { background: #E1E3E6; color: #444; margin-bottom: 15px; font-size: 14px; }
+        .btn-add { background: #E1E3E6; color: #444; margin-bottom: 10px; font-size: 14px; }
         .btn-del { background: #FF3B30; color: #fff; width: auto; padding: 6px 12px; font-size: 11px; border-radius: 6px; }
+        .btn-preview { background: #4BB34B; color: #fff; margin-bottom: 10px; }
         .field-editor { background: #F5F6F7; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #E1E3E6; text-align: left; }
         .privacy { font-size: 12px; color: var(--text-soft); margin-top: 15px; }
         .privacy a { color: var(--vk-blue); text-decoration: none; }
         .admin-trigger { background: none; color: #DCE1E6; font-size: 10px; margin-top: 30px; border: none; cursor: pointer; width: auto; padding: 5px; }
+        
+        .form-card { background: #F2F3F5; padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: left; border: 1px solid #DCE1E6; }
+        .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); }
+        .form-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; }
+        
+        .checkbox-group { text-align: left; margin-bottom: 15px; background: #F2F3F5; padding: 12px; border-radius: 10px; border: 1px solid #DCE1E6;}
+        .checkbox-group label { display: flex; align-items: center; font-weight: normal; margin-bottom: 8px; font-size: 14px;}
+        .checkbox-group input { width: auto; margin: 0 10px 0 0; }
+        
         #loading { margin-top: 50px; text-align: center; color: var(--text-soft); }
     </style>
 </head>
@@ -31,38 +42,66 @@
 
 <div id="loading">Загрузка системы...</div>
 
+<!-- ДАШБОРД (Список форм) -->
+<div id="dashboardView" class="container hidden">
+    <h2>Управление формами</h2>
+    <p class="desc">Создавайте разные формы для акций и задач.</p>
+    <div id="formsListContainer"></div>
+    <button class="btn-main" onclick="createNewForm()" style="margin-top: 10px;">+ Создать новую форму</button>
+</div>
+
+<!-- РЕДАКТОР ФОРМЫ -->
+<div id="adminView" class="container hidden">
+    <h2 id="editorTitle">⚙️ Настройка формы</h2>
+    <label>Название формы (внутреннее):</label>
+    <input type="text" id="editFormName" placeholder="Например: Летняя акция">
+    <label>Название проекта (от кого письмо):</label>
+    <input type="text" id="editProjectName" placeholder="Например: СантехФитингКомплект">
+    <label>Заголовок для клиентов:</label>
+    <input type="text" id="editTitle">
+    <label>Подзаголовок:</label>
+    <textarea id="editSubtitle"></textarea>
+    <label>Файл обложки (ссылка):</label>
+    <input type="text" id="editImage">
+    <label>Ключ Web3Forms (почта):</label>
+    <input type="text" id="editKey">
+    <label>Ссылка на политику конфиденциальности:</label>
+    <input type="text" id="editPrivacy">
+
+    <h3 style="font-size: 16px; text-align: left; margin-top: 20px;">Настройка полей:</h3>
+    <p class="desc" style="margin-bottom: 10px;">Поля "Имя" и "Телефон" встроены по умолчанию.</p>
+    <div id="fieldsList"></div>
+    <button class="btn-add" onclick="addField()">+ Добавить свой вопрос</button>
+    <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
+    <button class="btn-preview" onclick="previewForm()">👀 Предпросмотр</button>
+    <button class="btn-main" id="saveBtn" onclick="saveSettings()">Сохранить форму</button>
+    <button class="btn-add" onclick="showDashboard()">Отмена</button>
+</div>
+
+<!-- ПРОСМОТР ФОРМЫ (Для клиента и предпросмотра) -->
 <div id="userView" class="container hidden">
     <img id="userBanner" class="banner" src="" alt="">
     <h2 id="userTitle"></h2>
     <p id="userSubtitle" class="desc"></p>
     <form id="clientForm"></form>
     <div id="userPrivacy" class="privacy"></div>
-    <button class="admin-trigger" onclick="manualAdminLogin()">v2.3</button>
+    <div id="previewNotice" class="hidden" style="margin-top:20px; padding:10px; background:#FFEAA7; border-radius:8px; font-size:12px; color:#D35400;">
+        <b>Режим предпросмотра.</b> Заявки не отправляются.<br><br>
+        <button class="btn-add" onclick="closePreview()" style="margin:0;">Вернуться в редактор</button>
+    </div>
+    <button class="admin-trigger" onclick="manualAdminLogin()" id="adminTriggerBtn">v3.0</button>
 </div>
 
-<div id="adminView" class="container hidden">
-    <h2>⚙️ Настройка проекта</h2>
-    <label>Название сообщества (для почты):</label>
-    <input type="text" id="editProjectName" placeholder="Например: СантехФитингКомплект">
-    <label>Заголовок формы:</label>
-    <input type="text" id="editTitle">
-    <label>Подзаголовок:</label>
-    <textarea id="editSubtitle"></textarea>
-    <label>Файл обложки:</label>
-    <input type="text" id="editImage">
-    <label>Web3Forms Key:</label>
-    <input type="text" id="editKey">
-    <label>Ссылка на политику:</label>
-    <input type="text" id="editPrivacy">
-    <h3 style="font-size: 16px; text-align: left; margin-top: 20px;">Поля анкеты:</h3>
-    <div id="fieldsList"></div>
-    <button class="btn-add" onclick="addField()">+ Добавить поле</button>
-    <button class="btn-main" id="saveBtn" onclick="saveSettings()">Сохранить всё</button>
+<!-- ОКНО УСПЕХА -->
+<div id="successModal" class="container hidden" style="padding: 40px 20px;">
+    <h2 style="text-align: center; color: var(--vk-blue); font-size: 24px; margin-bottom: 15px;">Спасибо! 🎉</h2>
+    <p class="desc" style="text-align: center; font-size: 16px;">Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
+    <button class="btn-main" onclick="vkBridge.send('VKWebAppClose', {'status': 'success'})" style="margin-top: 20px;">Понятно</button>
 </div>
 
 <script>
-    const SUPABASE_URL = 'https://dhtcpgyeygiafwngxyoc.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_neIIsf1I3lvQ1vvmll4pEg_IwesIUo9';
+    const SUPABASE_URL = 'https://dhtcpgyeygiafwngxyoc.supabase.co'; // Твой URL
+    const SUPABASE_KEY = 'sb_publishable_neIIsf1I3lvQ1vvmll4pEg_IwesIUo9'; // Твой KEY
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     vkBridge.send('VKWebAppInit');
@@ -71,12 +110,16 @@
     let gid = params.get('vk_group_id');
     const role = params.get('vk_viewer_role');
     const viewerId = params.get('vk_viewer_id');
-    const MY_VK_ID = 52069477;
+    const MY_VK_ID = 52069477; // Твой ID
 
-    let currentFields = [];
-    let dbData = null;
+    let allForms = []; // Массив всех форм группы
+    let editingFormId = null; // ID формы, которую сейчас редактируем
+    let currentUserProfile = null;
 
-    // Вспомогательная функция для перевода кириллицы в латиницу (для почты)
+    // Генератор ID для новых форм
+    function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+    // Транслитерация для почты
     function translit(text) {
         const map = {'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'j','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ы':'y','э':'e','ю':'yu','я':'ya',' ':'_'};
         return text.toLowerCase().split('').map(char => map[char] || (/[a-z0-9]/.test(char) ? char : '')).join('').substring(0, 20);
@@ -84,89 +127,318 @@
 
     async function start() {
         if (!gid) {
-            document.getElementById('loading').innerHTML = `Запустите из ВК или <button onclick="manualAdminLogin()">Админ</button>`;
+            document.getElementById('loading').innerHTML = `Запустите из ВК или <button onclick="manualAdminLogin()" class="btn-add" style="margin-top:10px;">Войти как Админ</button>`;
             return;
         }
+
+        // Пытаемся получить имя пользователя из ВК для автозаполнения
+        try { currentUserProfile = await vkBridge.send('VKWebAppGetUserInfo'); } catch(e) {}
+
         const { data } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).single();
-        dbData = data;
+        
+        // ХИТРАЯ МИГРАЦИЯ: Если данные есть, проверяем их формат
+        if (data && data.fields) {
+            if (data.fields.length > 0 && data.fields[0].form_id) {
+                allForms = data.fields; // Это уже новый формат (массив форм)
+            } else {
+                // Старая версия: конвертируем её в первую форму нового формата
+                allForms = [{
+                    form_id: generateId(),
+                    internal_name: 'Основная форма (Старая)',
+                    project_name: data.project_name || '',
+                    title: data.title || '',
+                    subtitle: data.subtitle || '',
+                    image_url: data.image_url || '',
+                    web3forms_key: data.web3forms_key || '',
+                    privacy_url: data.privacy_url || '',
+                    fields: data.fields || []
+                }];
+            }
+        }
+
         const isAdmin = (role === 'admin' || role === 'editor' || viewerId == MY_VK_ID);
-        if (isAdmin && !dbData) showAdmin(dbData);
-        else if (dbData) showUser(dbData);
-        else document.getElementById('loading').innerText = "Форма не настроена.";
+
+        // Парсим хэш из ссылки (например: #form=123)
+        const hash = window.location.hash;
+        let requestedFormId = hash.includes('form=') ? hash.split('form=')[1] : null;
+
+        if (isAdmin && !requestedFormId) {
+            // Если админ зашел без конкретной ссылки - показываем Дашборд
+            showDashboard();
+        } else {
+            // Режим клиента
+            let formToShow = allForms[0]; // По умолчанию первая
+            if (requestedFormId) {
+                const found = allForms.find(f => f.form_id === requestedFormId);
+                if (found) formToShow = found;
+            }
+            if (formToShow) {
+                renderClientForm(formToShow, false);
+            } else {
+                document.getElementById('loading').innerText = "Форма не найдена или еще не настроена.";
+            }
+        }
     }
 
     function manualAdminLogin() {
-        if (prompt("Ваш ID:") == MY_VK_ID) { if(!gid) gid = prompt("ID группы:"); showAdmin(dbData); }
-    }
-
-    function showAdmin(data) {
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('userView').classList.add('hidden');
-        document.getElementById('adminView').classList.remove('hidden');
-        if (data) {
-            document.getElementById('editProjectName').value = data.project_name || '';
-            document.getElementById('editTitle').value = data.title || '';
-            document.getElementById('editSubtitle').value = data.subtitle || '';
-            document.getElementById('editImage').value = data.image_url || '';
-            document.getElementById('editKey').value = data.web3forms_key || '';
-            document.getElementById('editPrivacy').value = data.privacy_url || '';
-            currentFields = data.fields || [];
-            renderFieldsEditor();
+        if (prompt("Ваш VK ID:") == MY_VK_ID) { 
+            if(!gid) gid = prompt("ID группы:"); 
+            showDashboard(); 
         }
     }
 
-    function addField() { currentFields.push({ label: 'Ваш вопрос', type: 'text', options: '' }); renderFieldsEditor(); }
+    // --- ЛОГИКА ДАШБОРДА ---
+    function showDashboard() {
+        hideAll();
+        document.getElementById('dashboardView').classList.remove('hidden');
+        const container = document.getElementById('formsListContainer');
+        container.innerHTML = '';
+
+        if (allForms.length === 0) {
+            container.innerHTML = '<p class="desc">У вас пока нет ни одной формы.</p>';
+            return;
+        }
+
+        allForms.forEach((form, index) => {
+            const div = document.createElement('div');
+            div.className = 'form-card';
+            div.innerHTML = `
+                <h3>${form.internal_name || form.title || 'Форма без названия'}</h3>
+                <div class="form-card-actions">
+                    <button class="btn-main" onclick="openEditor('${form.form_id}')">⚙️ Ред.</button>
+                    <button class="btn-add" onclick="copyLink('${form.form_id}')">🔗 Ссылка</button>
+                    <button class="btn-del" onclick="deleteForm('${form.form_id}')">Удалить</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function createNewForm() {
+        editingFormId = generateId();
+        openEditor(editingFormId, true);
+    }
+
+    function deleteForm(id) {
+        if(confirm('Точно удалить эту форму? Действие необратимо.')) {
+            allForms = allForms.filter(f => f.form_id !== id);
+            saveToDB();
+        }
+    }
+
+    function copyLink(id) {
+        // Формируем ссылку на приложение с хэшем формы
+        const appUrl = `https://vk.com/app${params.get('vk_app_id')}_-${gid}#form=${id}`;
+        vkBridge.send("VKWebAppCopyText", {"text": appUrl})
+            .then(() => alert("Ссылка скопирована! Вставляйте её в посты или кнопки."))
+            .catch(() => alert("Ваша ссылка: \n" + appUrl));
+    }
+
+    // --- ЛОГИКА РЕДАКТОРА ---
+    let currentFields = [];
+
+    function openEditor(id, isNew = false) {
+        hideAll();
+        document.getElementById('adminView').classList.remove('hidden');
+        editingFormId = id;
+        
+        let form = allForms.find(f => f.form_id === id) || {};
+        
+        document.getElementById('editFormName').value = form.internal_name || (isNew ? 'Новая форма' : '');
+        document.getElementById('editProjectName').value = form.project_name || '';
+        document.getElementById('editTitle').value = form.title || '';
+        document.getElementById('editSubtitle').value = form.subtitle || '';
+        document.getElementById('editImage').value = form.image_url || '';
+        document.getElementById('editKey').value = form.web3forms_key || '';
+        document.getElementById('editPrivacy').value = form.privacy_url || '';
+        
+        currentFields = form.fields || [];
+        renderFieldsEditor();
+    }
+
+    function addField() { 
+        currentFields.push({ label: 'Новый вопрос', type: 'text', options: '' }); 
+        renderFieldsEditor(); 
+    }
 
     function renderFieldsEditor() {
-        const list = document.getElementById('fieldsList'); list.innerHTML = '';
+        const list = document.getElementById('fieldsList'); 
+        list.innerHTML = '';
         currentFields.forEach((f, i) => {
-            const div = document.createElement('div'); div.className = 'field-editor';
-            div.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:10px;"><b>Вопрос #${i+1}</b><button class="btn-del" onclick="currentFields.splice(${i},1); renderFieldsEditor()">Удалить</button></div>
-                <input type="text" value="${f.label}" oninput="currentFields[${i}].label=this.value" placeholder="Название вопроса">
-                <select onchange="currentFields[${i}].type=this.value; renderFieldsEditor()"><option value="text" ${f.type==='text'?'selected':''}>Текст</option><option value="tel" ${f.type==='tel'?'selected':''}>Телефон</option><option value="textarea" ${f.type==='textarea'?'selected':''}>Абзац</option><option value="select" ${f.type==='select'?'selected':''}>Список</option></select>
-                ${f.type === 'select' ? `<input type="text" value="${f.options || ''}" oninput="currentFields[${i}].options=this.value" placeholder="Варианты через запятую">` : ''}`;
+            const div = document.createElement('div'); 
+            div.className = 'field-editor';
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <b>Вопрос #${i+1}</b>
+                    <button class="btn-del" onclick="currentFields.splice(${i},1); renderFieldsEditor()">Удалить</button>
+                </div>
+                <input type="text" value="${f.label}" oninput="currentFields[${i}].label=this.value" placeholder="Суть вопроса">
+                <select onchange="currentFields[${i}].type=this.value; renderFieldsEditor()">
+                    <option value="text" ${f.type==='text'?'selected':''}>Короткий текст</option>
+                    <option value="textarea" ${f.type==='textarea'?'selected':''}>Длинный ответ</option>
+                    <option value="select" ${f.type==='select'?'selected':''}>Один вариант (Выпадающий список)</option>
+                    <option value="checkbox" ${f.type==='checkbox'?'selected':''}>Несколько вариантов (Галочки)</option>
+                </select>
+                ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" value="${f.options || ''}" oninput="currentFields[${i}].options=this.value" placeholder="Варианты через запятую (Да, Нет, Не знаю)">` : ''}
+            `;
             list.appendChild(div);
         });
     }
 
-    async function saveSettings() {
-        const payload = { vk_group_id: gid, project_name: document.getElementById('editProjectName').value, title: document.getElementById('editTitle').value, subtitle: document.getElementById('editSubtitle').value, image_url: document.getElementById('editImage').value, web3forms_key: document.getElementById('editKey').value, privacy_url: document.getElementById('editPrivacy').value, fields: currentFields };
-        await _supabase.from('forms').upsert(payload, { onConflict: 'vk_group_id' });
-        alert('Сохранено!'); location.reload();
-    }
-
-    function showUser(data) {
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('userView').classList.remove('hidden');
-        if (data.image_url) { document.getElementById('userBanner').src = data.image_url; } else { document.getElementById('userBanner').style.display = 'none'; }
-        document.getElementById('userTitle').innerText = data.title;
-        document.getElementById('userSubtitle').innerText = data.subtitle;
-        const form = document.getElementById('clientForm'); form.innerHTML = '';
-        data.fields.forEach((f, index) => {
-            const lbl = document.createElement('label'); lbl.innerText = f.label; form.appendChild(lbl);
-            let input = f.type === 'select' ? document.createElement('select') : (f.type === 'textarea' ? document.createElement('textarea') : document.createElement('input'));
-            if (f.type === 'select') { (f.options || '').split(',').forEach(o => { const opt = document.createElement('option'); opt.value = o.trim(); opt.innerText = o.trim(); input.appendChild(opt); }); }
-            else if (f.type !== 'textarea') { input.type = f.type; }
-            // Генерируем чистое имя на латинице для почты
-            input.name = `Q${index+1}_${translit(f.label)}`; 
-            input.required = true; form.appendChild(input);
-        });
-        if (data.privacy_url) { document.getElementById('userPrivacy').innerHTML = `Нажимая кнопку, вы соглашаетесь с <a href="${data.privacy_url}" target="_blank">политикой конфиденциальности</a>`; }
-        const btn = document.createElement('button'); btn.className = 'btn-main'; btn.innerText = 'Отправить'; btn.style.marginTop = '15px'; form.appendChild(btn);
-        form.onsubmit = async (e) => {
-            e.preventDefault(); btn.disabled = true; btn.innerText = 'Отправка...';
-            const formData = new FormData(form);
-            formData.append("access_key", data.web3forms_key);
-            formData.append("from_name", data.project_name || "Form");
-            formData.append("subject", `Заявка: ${data.project_name || 'Новая'}`);
-            // Добавляем легенду в конец письма, чтобы знать какой Q что значил
-            let legend = "\n\n--- Расшифровка вопросов ---\n";
-            data.fields.forEach((f, i) => legend += `Q${i+1}: ${f.label}\n`);
-            formData.append("Questions_Legend", legend);
-            await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
-            alert('Заявка отправлена!'); vkBridge.send("VKWebAppClose", {"status": "success"});
+    function collectFormData() {
+        return {
+            form_id: editingFormId,
+            internal_name: document.getElementById('editFormName').value || 'Без названия',
+            project_name: document.getElementById('editProjectName').value,
+            title: document.getElementById('editTitle').value,
+            subtitle: document.getElementById('editSubtitle').value,
+            image_url: document.getElementById('editImage').value,
+            web3forms_key: document.getElementById('editKey').value,
+            privacy_url: document.getElementById('editPrivacy').value,
+            fields: currentFields
         };
     }
+
+    async function saveSettings() {
+        document.getElementById('saveBtn').disabled = true;
+        const newFormData = collectFormData();
+        
+        const existingIndex = allForms.findIndex(f => f.form_id === editingFormId);
+        if (existingIndex >= 0) allForms[existingIndex] = newFormData;
+        else allForms.push(newFormData);
+
+        await saveToDB();
+        document.getElementById('saveBtn').disabled = false;
+        showDashboard();
+    }
+
+    async function saveToDB() {
+        const payload = { vk_group_id: gid, fields: allForms }; // Сохраняем ВЕСЬ массив в ячейку fields
+        await _supabase.from('forms').upsert(payload, { onConflict: 'vk_group_id' });
+    }
+
+    // --- ПРЕДПРОСМОТР ---
+    function previewForm() {
+        const fakeData = collectFormData();
+        renderClientForm(fakeData, true);
+    }
+    function closePreview() {
+        hideAll();
+        document.getElementById('adminView').classList.remove('hidden');
+    }
+
+    // --- КЛИЕНТСКАЯ ЧАСТЬ (Генерация формы) ---
+    function renderClientForm(data, isPreview = false) {
+        hideAll();
+        document.getElementById('userView').classList.remove('hidden');
+        
+        if (isPreview) {
+            document.getElementById('previewNotice').classList.remove('hidden');
+            document.getElementById('adminTriggerBtn').classList.add('hidden');
+        } else {
+            document.getElementById('previewNotice').classList.add('hidden');
+            document.getElementById('adminTriggerBtn').classList.remove('hidden');
+        }
+
+        if (data.image_url) { 
+            document.getElementById('userBanner').src = data.image_url; 
+            document.getElementById('userBanner').style.display = 'block';
+        } else { 
+            document.getElementById('userBanner').style.display = 'none'; 
+        }
+        
+        document.getElementById('userTitle').innerText = data.title || 'Форма';
+        document.getElementById('userSubtitle').innerText = data.subtitle || '';
+        
+        const form = document.getElementById('clientForm'); 
+        form.innerHTML = '';
+
+        // Базовые поля: Имя и Телефон
+        form.innerHTML += `
+            <label>Ваше имя</label>
+            <input type="text" name="Q0_Name" id="clientNameInput" required>
+            <label>Номер телефона</label>
+            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required>
+        `;
+
+        // Генерируем кастомные поля
+        data.fields.forEach((f, index) => {
+            const safeName = `Q${index+1}_${translit(f.label)}`;
+            const lbl = document.createElement('label'); lbl.innerText = f.label; 
+            form.appendChild(lbl);
+            
+            if (f.type === 'select') {
+                const sel = document.createElement('select'); sel.name = safeName; sel.required = true;
+                (f.options || '').split(',').forEach(o => { 
+                    const opt = document.createElement('option'); opt.value = o.trim(); opt.innerText = o.trim(); sel.appendChild(opt); 
+                });
+                form.appendChild(sel);
+            } else if (f.type === 'checkbox') {
+                const wrap = document.createElement('div'); wrap.className = 'checkbox-group';
+                (f.options || '').split(',').forEach(o => { 
+                    const label = document.createElement('label');
+                    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.name = safeName; cb.value = o.trim();
+                    label.appendChild(cb); label.appendChild(document.createTextNode(o.trim()));
+                    wrap.appendChild(label);
+                });
+                form.appendChild(wrap);
+            } else if (f.type === 'textarea') {
+                const ta = document.createElement('textarea'); ta.name = safeName; ta.required = true; form.appendChild(ta);
+            } else {
+                const inp = document.createElement('input'); inp.type = 'text'; inp.name = safeName; inp.required = true; form.appendChild(inp);
+            }
+        });
+
+        if (data.privacy_url) { 
+            document.getElementById('userPrivacy').innerHTML = `Нажимая кнопку, вы соглашаетесь с <a href="${data.privacy_url}" target="_blank">политикой конфиденциальности</a>`; 
+        }
+
+        const btn = document.createElement('button'); 
+        btn.className = 'btn-main'; 
+        btn.innerText = isPreview ? 'Отправить (тест)' : 'Отправить заявку'; 
+        btn.style.marginTop = '15px'; 
+        form.appendChild(btn);
+
+        // Автозаполнение имени после рендера
+        if (currentUserProfile) {
+            document.getElementById('clientNameInput').value = `${currentUserProfile.first_name} ${currentUserProfile.last_name}`;
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault(); 
+            if (isPreview) { alert('В режиме предпросмотра данные не отправляются!'); return; }
+            
+            btn.disabled = true; btn.innerText = 'Отправка...';
+            const formData = new FormData(form);
+            formData.append("access_key", data.web3forms_key);
+            formData.append("from_name", data.project_name || "Новая форма ВК");
+            formData.append("subject", `Лид: ${data.title || 'Заявка'}`);
+            
+            let legend = "\n\n--- Расшифровка вопросов ---\nИмя и Телефон указаны в начале письма.\n";
+            data.fields.forEach((f, i) => legend += `Q${i+1}: ${f.label}\n`);
+            formData.append("Questions_Legend", legend);
+            
+            try {
+                await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
+                // Показываем красивое окно успеха вместо alert
+                hideAll();
+                document.getElementById('successModal').classList.remove('hidden');
+            } catch (err) {
+                alert('Произошла ошибка сети. Попробуйте еще раз.'); 
+                btn.disabled = false; btn.innerText = 'Отправить заявку';
+            }
+        };
+    }
+
+    // Утилита для переключения экранов
+    function hideAll() {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('dashboardView').classList.add('hidden');
+        document.getElementById('adminView').classList.add('hidden');
+        document.getElementById('userView').classList.add('hidden');
+        document.getElementById('successModal').classList.add('hidden');
+    }
+
     start();
 </script>
 </body>
