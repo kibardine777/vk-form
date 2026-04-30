@@ -401,17 +401,20 @@
             formData.append("Questions_Legend", legend);
             
             try {
+                // Отправляем заявку всем админам
                 for (let key of keys) {
                     formData.set("access_key", key);
                     await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
                 }
                 
-                document.getElementById('successReturnBtn').onclick = () => {
-                    window.top.location.href = `https://vk.com/club${gid}`;
-                };
-                
-                hideAll();
-                document.getElementById('loading').innerHTML = 'Форма не найдена. <br><br><button onclick="manualAdminLogin()" class="btn-add" style="width: auto; padding: 10px 20px;">⚙️ Настроить (Админ)</button>';
+                // Железобетонный вывод окна "Спасибо" прямо в текущей карточке
+                document.getElementById('userView').innerHTML = `
+                    <div style="padding: 30px 10px; text-align: center;">
+                        <h2 style="color: #0077FF; font-size: 24px; margin-bottom: 15px;">Спасибо! 🎉</h2>
+                        <p style="color: #818C99; font-size: 16px; margin-bottom: 30px;">Ваша заявка успешно отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
+                        <button class="btn-main" onclick="vkBridge.send('VKWebAppClose', {'status': 'success'})">Понятно, вернуться в группу</button>
+                    </div>
+                `;
             } catch (err) {
                 alert('Произошла ошибка сети. Попробуйте еще раз.'); 
                 btn.disabled = false; btn.innerText = 'Отправить заявку';
