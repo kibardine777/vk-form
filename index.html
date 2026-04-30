@@ -411,7 +411,7 @@
                 };
                 
                 hideAll();
-                document.getElementById('successModal').classList.remove('hidden');
+                document.getElementById('loading').innerHTML = 'Форма не найдена. <br><br><button onclick="manualAdminLogin()" class="btn-add" style="width: auto; padding: 10px 20px;">⚙️ Настроить (Админ)</button>';
             } catch (err) {
                 alert('Произошла ошибка сети. Попробуйте еще раз.'); 
                 btn.disabled = false; btn.innerText = 'Отправить заявку';
