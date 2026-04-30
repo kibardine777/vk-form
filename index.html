@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.2</title>
+    <title>Конструктор заявок 3.3</title>
+    <!-- Асинхронная загрузка для ускорения -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -31,19 +32,24 @@
         .form-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; }
         
-        /* Единый стиль для точек (радио) и галочек (чекбоксов) */
         .options-group { text-align: left; margin-bottom: 15px; background: #F2F3F5; padding: 12px; border-radius: 10px; border: 1px solid #DCE1E6;}
         .options-group label { display: flex; align-items: center; font-weight: normal; margin-bottom: 8px; font-size: 14px; cursor: pointer;}
         .options-group input { width: auto; margin: 0 10px 0 0; cursor: pointer; }
         
-        #loading { margin-top: 50px; text-align: center; color: var(--text-soft); }
+        /* Стили для красивой загрузки */
+        #loading { margin-top: 50px; text-align: center; color: var(--text-soft); font-size: 15px; }
+        .loader-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(0,119,255,0.2); border-radius: 50%; border-top-color: var(--vk-blue); animation: spin 1s ease-in-out infinite; margin-bottom: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div id="loading">Загрузка системы...</div>
+<!-- Анимированный экран загрузки -->
+<div id="loading">
+    <div class="loader-spinner"></div><br>
+    <span id="loadText">Загрузка системы...</span>
+</div>
 
-<!-- ДАШБОРД -->
 <div id="dashboardView" class="container hidden">
     <h2>Управление формами</h2>
     <p class="desc">Создавайте разные формы для акций и задач.</p>
@@ -51,7 +57,6 @@
     <button class="btn-main" onclick="createNewForm()" style="margin-top: 10px;">+ Создать новую форму</button>
 </div>
 
-<!-- РЕДАКТОР ФОРМЫ -->
 <div id="adminView" class="container hidden">
     <h2 id="editorTitle">⚙️ Настройка формы</h2>
     <label>Название формы (внутреннее):</label>
@@ -79,7 +84,6 @@
     <button class="btn-add" onclick="showDashboard()">Отмена</button>
 </div>
 
-<!-- ПРОСМОТР ФОРМЫ -->
 <div id="userView" class="container hidden">
     <img id="userBanner" class="banner" src="" alt="">
     <h2 id="userTitle"></h2>
@@ -90,10 +94,9 @@
         <b>Режим предпросмотра.</b> Заявки не отправляются.<br><br>
         <button class="btn-add" onclick="closePreview()" style="margin:0;">Вернуться в редактор</button>
     </div>
-    <button class="admin-trigger" onclick="manualAdminLogin()" id="adminTriggerBtn">v3.2</button>
+    <button class="admin-trigger" onclick="manualAdminLogin()" id="adminTriggerBtn">v3.3</button>
 </div>
 
-<!-- ОКНО УСПЕХА -->
 <div id="successModal" class="container hidden" style="padding: 40px 20px;">
     <h2 style="text-align: center; color: var(--vk-blue); font-size: 24px; margin-bottom: 15px;">Спасибо! 🎉</h2>
     <p class="desc" style="text-align: center; font-size: 16px;">Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
@@ -126,47 +129,63 @@
 
     async function start() {
         if (!gid) {
-            document.getElementById('loading').innerHTML = `Запустите из ВК или <button onclick="manualAdminLogin()" class="btn-add" style="margin-top:10px;">Войти как Админ</button>`;
+            document.getElementById('loading').innerHTML = `Запустите из ВК или <br><button onclick="manualAdminLogin()" class="btn-add" style="margin-top:15px;">Войти как Админ</button>`;
             return;
         }
 
-        try { currentUserProfile = await vkBridge.send('VKWebAppGetUserInfo'); } catch(e) {}
+        // Таймер безопасности: если база не ответила за 6 секунд, даем кнопку перезагрузки
+        let loadTimeout = setTimeout(() => {
+            const loadEl = document.getElementById('loading');
+            if (loadEl && !loadEl.classList.contains('hidden')) {
+                loadEl.innerHTML = `<span style="color:#FF3B30;">Долгая загрузка сети...</span><br><br><button onclick="location.reload()" class="btn-main" style="padding:10px;">Обновить страницу</button>`;
+            }
+        }, 6000);
 
-        const { data } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).single();
-        
-        if (data && data.fields) {
-            if (data.fields.length > 0 && data.fields[0].form_id) {
-                allForms = data.fields; 
+        try { 
+            currentUserProfile = await vkBridge.send('VKWebAppGetUserInfo'); 
+        } catch(e) {}
+
+        try {
+            const { data } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).single();
+            clearTimeout(loadTimeout); // Отключаем таймер, если всё загрузилось быстро
+
+            if (data && data.fields) {
+                if (data.fields.length > 0 && data.fields[0].form_id) {
+                    allForms = data.fields; 
+                } else {
+                    allForms = [{
+                        form_id: generateId(), internal_name: 'Основная форма', project_name: data.project_name || '', title: data.title || '', subtitle: data.subtitle || '', image_url: data.image_url || '', web3forms_key: data.web3forms_key || '', privacy_url: data.privacy_url || '', fields: data.fields || []
+                    }];
+                }
+            }
+
+            const isAdmin = (role === 'admin' || role === 'editor' || viewerId == MY_VK_ID);
+            const hash = window.location.hash;
+            let requestedFormId = hash.includes('form=') ? hash.split('form=')[1] : null;
+
+            if (isAdmin && !requestedFormId) {
+                showDashboard();
             } else {
-                allForms = [{
-                    form_id: generateId(), internal_name: 'Основная форма', project_name: data.project_name || '', title: data.title || '', subtitle: data.subtitle || '', image_url: data.image_url || '', web3forms_key: data.web3forms_key || '', privacy_url: data.privacy_url || '', fields: data.fields || []
-                }];
+                let formToShow = allForms[0]; 
+                if (requestedFormId) {
+                    const found = allForms.find(f => f.form_id === requestedFormId);
+                    if (found) formToShow = found;
+                }
+                if (formToShow) {
+                    renderClientForm(formToShow, false);
+                } else {
+                    document.getElementById('loading').innerHTML = `Форма не найдена. <br><br><button onclick="manualAdminLogin()" class="btn-add" style="width: auto; padding: 10px 20px;">⚙️ Настроить (Админ)</button>`;
+                }
             }
-        }
-
-        const isAdmin = (role === 'admin' || role === 'editor' || viewerId == MY_VK_ID);
-        const hash = window.location.hash;
-        let requestedFormId = hash.includes('form=') ? hash.split('form=')[1] : null;
-
-        if (isAdmin && !requestedFormId) {
-            showDashboard();
-        } else {
-            let formToShow = allForms[0]; 
-            if (requestedFormId) {
-                const found = allForms.find(f => f.form_id === requestedFormId);
-                if (found) formToShow = found;
-            }
-            if (formToShow) {
-                renderClientForm(formToShow, false);
-            } else {
-                document.getElementById('loading').innerText = "Форма не найдена.";
-            }
+        } catch (err) {
+            clearTimeout(loadTimeout);
+            document.getElementById('loading').innerHTML = `<span style="color:#FF3B30;">Ошибка подключения к базе.</span><br><br><button onclick="location.reload()" class="btn-main" style="padding:10px;">Попробовать снова</button>`;
         }
     }
 
     function manualAdminLogin() {
         if (prompt("Ваш VK ID:") == MY_VK_ID) { 
-            if(!gid) gid = prompt("ID группы:"); 
+            if(!gid) gid = prompt("ID группы (цифры):"); 
             showDashboard(); 
         }
     }
@@ -206,6 +225,7 @@
         if(confirm('Точно удалить эту форму?')) {
             allForms = allForms.filter(f => f.form_id !== id);
             saveToDB();
+            showDashboard();
         }
     }
 
@@ -344,7 +364,7 @@
                     rb.type = 'radio'; 
                     rb.name = safeName; 
                     rb.value = o.trim();
-                    if (i === 0) rb.required = true; // Делаем выбор хотя бы одного варианта обязательным
+                    if (i === 0) rb.required = true; 
                     label.appendChild(rb); 
                     label.appendChild(document.createTextNode(o.trim()));
                     wrap.appendChild(label);
@@ -401,13 +421,11 @@
             formData.append("Questions_Legend", legend);
             
             try {
-                // Отправляем заявку всем админам
                 for (let key of keys) {
                     formData.set("access_key", key);
                     await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
                 }
                 
-                // Железобетонный вывод окна "Спасибо" прямо в текущей карточке
                 document.getElementById('userView').innerHTML = `
                     <div style="padding: 30px 10px; text-align: center;">
                         <h2 style="color: #0077FF; font-size: 24px; margin-bottom: 15px;">Спасибо! 🎉</h2>
