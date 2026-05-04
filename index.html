@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.3</title>
-    <!-- Асинхронная загрузка для ускорения -->
+    <title>Конструктор заявок 3.4</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -25,7 +24,6 @@
         .field-editor { background: #F5F6F7; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #E1E3E6; text-align: left; }
         .privacy { font-size: 12px; color: var(--text-soft); margin-top: 15px; }
         .privacy a { color: var(--vk-blue); text-decoration: none; }
-        .admin-trigger { background: none; color: #DCE1E6; font-size: 10px; margin-top: 30px; border: none; cursor: pointer; width: auto; padding: 5px; }
         
         .form-card { background: #F2F3F5; padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: left; border: 1px solid #DCE1E6; }
         .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); }
@@ -36,15 +34,20 @@
         .options-group label { display: flex; align-items: center; font-weight: normal; margin-bottom: 8px; font-size: 14px; cursor: pointer;}
         .options-group input { width: auto; margin: 0 10px 0 0; cursor: pointer; }
         
-        /* Стили для красивой загрузки */
-        #loading { margin-top: 50px; text-align: center; color: var(--text-soft); font-size: 15px; }
+        #loading { margin-top: 50px; text-align: center; color: var(--text-soft); font-size: 15px; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto;}
         .loader-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(0,119,255,0.2); border-radius: 50%; border-top-color: var(--vk-blue); animation: spin 1s ease-in-out infinite; margin-bottom: 10px; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Стили для новых кастомных уведомлений (вместо alert) */
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; pointer-events: none; }
+        .toast-error { background: #FF3B30 !important; }
     </style>
 </head>
 <body>
 
-<!-- Анимированный экран загрузки -->
+<!-- Кастомное уведомление -->
+<div id="toast" class="hidden">Уведомление</div>
+
 <div id="loading">
     <div class="loader-spinner"></div><br>
     <span id="loadText">Загрузка системы...</span>
@@ -67,7 +70,7 @@
     <input type="text" id="editTitle">
     <label>Подзаголовок:</label>
     <textarea id="editSubtitle"></textarea>
-    <label>Файл обложки (Скопируйте URL картинки из ВК):</label>
+    <label>Файл обложки (URL картинки):</label>
     <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/...">
     <label>Ключ Web3Forms (Можно несколько через запятую):</label>
     <input type="text" id="editKey" placeholder="Например: key1, key2">
@@ -94,7 +97,6 @@
         <b>Режим предпросмотра.</b> Заявки не отправляются.<br><br>
         <button class="btn-add" onclick="closePreview()" style="margin:0;">Вернуться в редактор</button>
     </div>
-    <button class="admin-trigger" onclick="manualAdminLogin()" id="adminTriggerBtn">v3.3</button>
 </div>
 
 <div id="successModal" class="container hidden" style="padding: 40px 20px;">
@@ -114,11 +116,21 @@
     let gid = params.get('vk_group_id');
     const role = params.get('vk_viewer_role');
     const viewerId = params.get('vk_viewer_id');
-    const MY_VK_ID = 52069477;
+    const MY_VK_ID = '52069477';
 
     let allForms = []; 
     let editingFormId = null; 
     let currentUserProfile = null;
+
+    // Функция для красивых уведомлений (замена alert)
+    function showNotify(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        if (isError) toast.classList.add('toast-error');
+        else toast.classList.remove('toast-error');
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
 
     function generateId() { return Math.random().toString(36).substr(2, 9); }
 
@@ -128,12 +140,31 @@
     }
 
     async function start() {
+        const isAdmin = (role === 'admin' || role === 'editor' || viewerId === MY_VK_ID);
+
+        // Сценарий 1: Приложение открыто из общего каталога (нет ID группы)
         if (!gid) {
-            document.getElementById('loading').innerHTML = `Запустите из ВК или <br><button onclick="manualAdminLogin()" class="btn-add" style="margin-top:15px;">Войти как Админ</button>`;
+            const loadEl = document.getElementById('loading');
+            loadEl.classList.add('container');
+            if (isAdmin) {
+                // Админу показываем красивое поле ввода вместо системного окна
+                loadEl.innerHTML = `
+                    <h3 style="margin-top:0;">Режим администратора ⚙️</h3>
+                    <p class="desc">Вы открыли приложение вне сообщества. Чтобы настроить формы, введите ID вашей группы (только цифры):</p>
+                    <input type="text" id="manualGidInput" placeholder="Например: 211244788">
+                    <button class="btn-main" onclick="loadManualGroup()">Открыть управление</button>
+                `;
+            } else {
+                // Обычному пользователю показываем заглушку
+                loadEl.innerHTML = `
+                    <h3 style="margin-top:0;">Добро пожаловать!</h3>
+                    <p class="desc">Это сервис для сбора заявок. Чтобы оставить заявку, пожалуйста, откройте это приложение внутри нужного вам сообщества ВКонтакте.</p>
+                `;
+            }
             return;
         }
 
-        // Таймер безопасности: если база не ответила за 6 секунд, даем кнопку перезагрузки
+        // Сценарий 2: Штатная работа внутри группы
         let loadTimeout = setTimeout(() => {
             const loadEl = document.getElementById('loading');
             if (loadEl && !loadEl.classList.contains('hidden')) {
@@ -141,25 +172,20 @@
             }
         }, 6000);
 
-        try { 
-            currentUserProfile = await vkBridge.send('VKWebAppGetUserInfo'); 
-        } catch(e) {}
+        try { currentUserProfile = await vkBridge.send('VKWebAppGetUserInfo'); } catch(e) {}
 
         try {
             const { data } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).single();
-            clearTimeout(loadTimeout); // Отключаем таймер, если всё загрузилось быстро
+            clearTimeout(loadTimeout); 
 
             if (data && data.fields) {
                 if (data.fields.length > 0 && data.fields[0].form_id) {
                     allForms = data.fields; 
                 } else {
-                    allForms = [{
-                        form_id: generateId(), internal_name: 'Основная форма', project_name: data.project_name || '', title: data.title || '', subtitle: data.subtitle || '', image_url: data.image_url || '', web3forms_key: data.web3forms_key || '', privacy_url: data.privacy_url || '', fields: data.fields || []
-                    }];
+                    allForms = [{ form_id: generateId(), internal_name: 'Основная форма', project_name: data.project_name || '', title: data.title || '', subtitle: data.subtitle || '', image_url: data.image_url || '', web3forms_key: data.web3forms_key || '', privacy_url: data.privacy_url || '', fields: data.fields || [] }];
                 }
             }
 
-            const isAdmin = (role === 'admin' || role === 'editor' || viewerId == MY_VK_ID);
             const hash = window.location.hash;
             let requestedFormId = hash.includes('form=') ? hash.split('form=')[1] : null;
 
@@ -174,7 +200,7 @@
                 if (formToShow) {
                     renderClientForm(formToShow, false);
                 } else {
-                    document.getElementById('loading').innerHTML = `Форма не найдена. <br><br><button onclick="manualAdminLogin()" class="btn-add" style="width: auto; padding: 10px 20px;">⚙️ Настроить (Админ)</button>`;
+                    document.getElementById('loading').innerHTML = `Форма не найдена.`;
                 }
             }
         } catch (err) {
@@ -183,10 +209,15 @@
         }
     }
 
-    function manualAdminLogin() {
-        if (prompt("Ваш VK ID:") == MY_VK_ID) { 
-            if(!gid) gid = prompt("ID группы (цифры):"); 
-            showDashboard(); 
+    function loadManualGroup() {
+        const inputVal = document.getElementById('manualGidInput').value.trim();
+        if(inputVal) {
+            gid = inputVal;
+            document.getElementById('loading').innerHTML = `<div class="loader-spinner"></div><br><span id="loadText">Загрузка системы...</span>`;
+            document.getElementById('loading').classList.remove('container');
+            start();
+        } else {
+            showNotify('Пожалуйста, введите ID группы', true);
         }
     }
 
@@ -222,18 +253,20 @@
     }
 
     function deleteForm(id) {
+        // Здесь используем стандартный confirm, так как это безопасное админское действие
         if(confirm('Точно удалить эту форму?')) {
             allForms = allForms.filter(f => f.form_id !== id);
             saveToDB();
             showDashboard();
+            showNotify('Форма удалена');
         }
     }
 
     function copyLink(id) {
         const appUrl = `https://vk.com/app${params.get('vk_app_id')}_-${gid}#form=${id}`;
         vkBridge.send("VKWebAppCopyText", {"text": appUrl})
-            .then(() => alert("Ссылка скопирована!"))
-            .catch(() => alert("Ваша ссылка: \n" + appUrl));
+            .then(() => showNotify("Ссылка скопирована!"))
+            .catch(() => prompt("Скопируйте вашу ссылку:", appUrl));
     }
 
     let currentFields = [];
@@ -302,6 +335,7 @@
 
         await saveToDB();
         document.getElementById('saveBtn').disabled = false;
+        showNotify('Настройки успешно сохранены!');
         showDashboard();
     }
 
@@ -314,6 +348,7 @@
         const fakeData = collectFormData();
         renderClientForm(fakeData, true);
     }
+    
     function closePreview() {
         hideAll();
         document.getElementById('adminView').classList.remove('hidden');
@@ -325,10 +360,8 @@
         
         if (isPreview) {
             document.getElementById('previewNotice').classList.remove('hidden');
-            document.getElementById('adminTriggerBtn').classList.add('hidden');
         } else {
             document.getElementById('previewNotice').classList.add('hidden');
-            document.getElementById('adminTriggerBtn').classList.remove('hidden');
         }
 
         if (data.image_url) { 
@@ -402,13 +435,16 @@
 
         form.onsubmit = async (e) => {
             e.preventDefault(); 
-            if (isPreview) { alert('В режиме предпросмотра данные не отправляются!'); return; }
+            if (isPreview) { 
+                showNotify('В режиме предпросмотра данные не отправляются!'); 
+                return; 
+            }
             
             btn.disabled = true; btn.innerText = 'Отправка...';
             
             const keys = (data.web3forms_key || '').split(',').map(k => k.trim()).filter(k => k);
             if (keys.length === 0) {
-                alert('Ошибка: не указан ключ почты!');
+                showNotify('Ошибка: не указан ключ почты админа!', true);
                 btn.disabled = false; btn.innerText = 'Отправить заявку'; return;
             }
 
@@ -434,7 +470,7 @@
                     </div>
                 `;
             } catch (err) {
-                alert('Произошла ошибка сети. Попробуйте еще раз.'); 
+                showNotify('Произошла ошибка сети. Попробуйте еще раз.', true); 
                 btn.disabled = false; btn.innerText = 'Отправить заявку';
             }
         };
