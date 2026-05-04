@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.4</title>
+    <title>Конструктор заявок 3.5</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -12,7 +12,10 @@
         .container { background: #fff; padding: 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: center; }
         .hidden { display: none !important; }
         img.banner { width: 100%; height: auto; min-height: 100px; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: #f0f0f0; display: block; }
-        h2 { margin: 0 0 8px; font-size: 20px; text-align: left; }
+        
+        /* Защита текста заголовка от выделения при тройном клике */
+        h2 { margin: 0 0 8px; font-size: 20px; text-align: left; user-select: none; -webkit-user-select: none; cursor: default; } 
+        
         p.desc { color: var(--text-soft); font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-align: left; }
         label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; }
         input[type="text"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #DCE1E6; box-sizing: border-box; font-size: 15px; background: #F2F3F5; }
@@ -38,14 +41,12 @@
         .loader-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(0,119,255,0.2); border-radius: 50%; border-top-color: var(--vk-blue); animation: spin 1s ease-in-out infinite; margin-bottom: 10px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Стили для новых кастомных уведомлений (вместо alert) */
         #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; pointer-events: none; }
         .toast-error { background: #FF3B30 !important; }
     </style>
 </head>
 <body>
 
-<!-- Кастомное уведомление -->
 <div id="toast" class="hidden">Уведомление</div>
 
 <div id="loading">
@@ -89,7 +90,8 @@
 
 <div id="userView" class="container hidden">
     <img id="userBanner" class="banner" src="" alt="">
-    <h2 id="userTitle"></h2>
+    <!-- Пасхалка: прикрепляем отслеживание кликов к заголовку -->
+    <h2 id="userTitle" onclick="checkSecretAdmin()"></h2>
     <p id="userSubtitle" class="desc"></p>
     <form id="clientForm"></form>
     <div id="userPrivacy" class="privacy"></div>
@@ -112,7 +114,11 @@
 
     vkBridge.send('VKWebAppInit');
 
-    const params = new URLSearchParams(window.location.search);
+    // Агрессивный перехват параметров (чтобы ВК и Vercel их не прятали)
+    const fullUrl = window.location.href.replace(/&amp;/g, '&');
+    let qString = fullUrl.includes('?') ? fullUrl.split('?')[1] : '';
+    const params = new URLSearchParams(qString);
+
     let gid = params.get('vk_group_id');
     const role = params.get('vk_viewer_role');
     const viewerId = params.get('vk_viewer_id');
@@ -122,7 +128,30 @@
     let editingFormId = null; 
     let currentUserProfile = null;
 
-    // Функция для красивых уведомлений (замена alert)
+    // Секретный вход по тройному клику
+    let tapCount = 0;
+    let tapTimeout;
+    function checkSecretAdmin() {
+        tapCount++;
+        clearTimeout(tapTimeout);
+        tapTimeout = setTimeout(() => { tapCount = 0; }, 1000); 
+        
+        if (tapCount >= 3) {
+            tapCount = 0;
+            let pin = prompt("Пин-код (только для владельца):");
+            if (pin === "777") {
+                if (!gid) {
+                    gid = prompt("Введите ID группы (только цифры):");
+                    if(gid) start(); // Перезапускаем сборку базы
+                } else {
+                    showDashboard();
+                }
+            } else if (pin !== null) {
+                showNotify("Неверный пин-код", true);
+            }
+        }
+    }
+
     function showNotify(msg, isError = false) {
         const toast = document.getElementById('toast');
         toast.innerText = msg;
@@ -142,12 +171,10 @@
     async function start() {
         const isAdmin = (role === 'admin' || role === 'editor' || viewerId === MY_VK_ID);
 
-        // Сценарий 1: Приложение открыто из общего каталога (нет ID группы)
         if (!gid) {
             const loadEl = document.getElementById('loading');
             loadEl.classList.add('container');
             if (isAdmin) {
-                // Админу показываем красивое поле ввода вместо системного окна
                 loadEl.innerHTML = `
                     <h3 style="margin-top:0;">Режим администратора ⚙️</h3>
                     <p class="desc">Вы открыли приложение вне сообщества. Чтобы настроить формы, введите ID вашей группы (только цифры):</p>
@@ -155,7 +182,6 @@
                     <button class="btn-main" onclick="loadManualGroup()">Открыть управление</button>
                 `;
             } else {
-                // Обычному пользователю показываем заглушку
                 loadEl.innerHTML = `
                     <h3 style="margin-top:0;">Добро пожаловать!</h3>
                     <p class="desc">Это сервис для сбора заявок. Чтобы оставить заявку, пожалуйста, откройте это приложение внутри нужного вам сообщества ВКонтакте.</p>
@@ -164,7 +190,6 @@
             return;
         }
 
-        // Сценарий 2: Штатная работа внутри группы
         let loadTimeout = setTimeout(() => {
             const loadEl = document.getElementById('loading');
             if (loadEl && !loadEl.classList.contains('hidden')) {
@@ -253,7 +278,6 @@
     }
 
     function deleteForm(id) {
-        // Здесь используем стандартный confirm, так как это безопасное админское действие
         if(confirm('Точно удалить эту форму?')) {
             allForms = allForms.filter(f => f.form_id !== id);
             saveToDB();
