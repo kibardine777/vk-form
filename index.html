@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.5</title>
+    <title>Конструктор заявок 3.6</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -13,8 +13,8 @@
         .hidden { display: none !important; }
         img.banner { width: 100%; height: auto; min-height: 100px; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: #f0f0f0; display: block; }
         
-        /* Защита текста заголовка от выделения при тройном клике */
-        h2 { margin: 0 0 8px; font-size: 20px; text-align: left; user-select: none; -webkit-user-select: none; cursor: default; } 
+        /* Защита текста от выделения при тройном клике (Пасхалка) */
+        h2, h3.secret-trigger { margin: 0 0 8px; font-size: 20px; text-align: left; user-select: none; -webkit-user-select: none; cursor: default; } 
         
         p.desc { color: var(--text-soft); font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-align: left; }
         label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; }
@@ -90,7 +90,7 @@
 
 <div id="userView" class="container hidden">
     <img id="userBanner" class="banner" src="" alt="">
-    <!-- Пасхалка: прикрепляем отслеживание кликов к заголовку -->
+    <!-- Пасхалка 1: Работает на готовой форме -->
     <h2 id="userTitle" onclick="checkSecretAdmin()"></h2>
     <p id="userSubtitle" class="desc"></p>
     <form id="clientForm"></form>
@@ -114,13 +114,13 @@
 
     vkBridge.send('VKWebAppInit');
 
-    // Агрессивный перехват параметров (чтобы ВК и Vercel их не прятали)
     const fullUrl = window.location.href.replace(/&amp;/g, '&');
     let qString = fullUrl.includes('?') ? fullUrl.split('?')[1] : '';
     const params = new URLSearchParams(qString);
 
     let gid = params.get('vk_group_id');
-    const role = params.get('vk_viewer_role');
+    // ИСПРАВЛЕНИЕ 1: Теперь проверяем роль пользователя ИМЕННО В ГРУППЕ
+    const role = params.get('vk_viewer_group_role'); 
     const viewerId = params.get('vk_viewer_id');
     const MY_VK_ID = '52069477';
 
@@ -142,7 +142,7 @@
             if (pin === "777") {
                 if (!gid) {
                     gid = prompt("Введите ID группы (только цифры):");
-                    if(gid) start(); // Перезапускаем сборку базы
+                    if(gid) start(); 
                 } else {
                     showDashboard();
                 }
@@ -169,6 +169,7 @@
     }
 
     async function start() {
+        // Проверяем админа: либо роль в группе админ/редактор, либо это ты лично
         const isAdmin = (role === 'admin' || role === 'editor' || viewerId === MY_VK_ID);
 
         if (!gid) {
@@ -200,8 +201,11 @@
         try { currentUserProfile = await vkBridge.send('VKWebAppGetUserInfo'); } catch(e) {}
 
         try {
-            const { data } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).single();
+            // ИСПРАВЛЕНИЕ 2: Используем maybeSingle() вместо single(), чтобы не было ошибки при пустой новой группе
+            const { data, error } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).maybeSingle();
+            
             clearTimeout(loadTimeout); 
+            if (error) throw error;
 
             if (data && data.fields) {
                 if (data.fields.length > 0 && data.fields[0].form_id) {
@@ -209,23 +213,34 @@
                 } else {
                     allForms = [{ form_id: generateId(), internal_name: 'Основная форма', project_name: data.project_name || '', title: data.title || '', subtitle: data.subtitle || '', image_url: data.image_url || '', web3forms_key: data.web3forms_key || '', privacy_url: data.privacy_url || '', fields: data.fields || [] }];
                 }
+            } else {
+                // Если группа абсолютно новая
+                allForms = [];
             }
 
             const hash = window.location.hash;
             let requestedFormId = hash.includes('form=') ? hash.split('form=')[1] : null;
 
             if (isAdmin && !requestedFormId) {
+                // Админ зашел в приложение -> сразу показываем Дашборд
                 showDashboard();
             } else {
-                let formToShow = allForms[0]; 
-                if (requestedFormId) {
-                    const found = allForms.find(f => f.form_id === requestedFormId);
-                    if (found) formToShow = found;
-                }
-                if (formToShow) {
+                if (allForms.length > 0) {
+                    let formToShow = allForms[0]; 
+                    if (requestedFormId) {
+                        const found = allForms.find(f => f.form_id === requestedFormId);
+                        if (found) formToShow = found;
+                    }
                     renderClientForm(formToShow, false);
                 } else {
-                    document.getElementById('loading').innerHTML = `Форма не найдена.`;
+                    // Клиент зашел в пустую группу, где еще нет форм
+                    document.getElementById('loading').innerHTML = `
+                        <div class="container" style="margin-top: 20px;">
+                            <!-- Пасхалка 2: Работает даже на пустом экране -->
+                            <h3 class="secret-trigger" style="text-align:center; color:#0077FF;" onclick="checkSecretAdmin()">Форма еще не настроена</h3>
+                            <p class="desc" style="text-align:center;">Администратор сообщества пока не создал ни одной формы.</p>
+                        </div>
+                    `;
                 }
             }
         } catch (err) {
@@ -253,7 +268,7 @@
         container.innerHTML = '';
 
         if (allForms.length === 0) {
-            container.innerHTML = '<p class="desc">У вас пока нет ни одной формы.</p>';
+            container.innerHTML = '<p class="desc" style="text-align:center;">У вас пока нет ни одной формы.</p>';
             return;
         }
 
