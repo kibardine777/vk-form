@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.7</title>
+    <title>Конструктор заявок 3.8</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -27,7 +27,7 @@
         .privacy a { color: var(--vk-blue); text-decoration: none; }
         
         .form-card { background: #F2F3F5; padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: left; border: 1px solid #DCE1E6; }
-        .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); }
+        .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); overflow-wrap: break-word; }
         .form-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; }
         
@@ -42,7 +42,6 @@
         #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; pointer-events: none; }
         .toast-error { background: #FF3B30 !important; }
         
-        /* Стили для посадочной страницы (Лендинга) */
         .feature-list { text-align: left; font-size: 14px; color: #444; margin-bottom: 25px; line-height: 1.6; background: #F2F3F5; padding: 15px; border-radius: 12px; }
     </style>
 </head>
@@ -137,6 +136,17 @@
 
     vkBridge.send('VKWebAppInit');
 
+    // ФУНКЦИЯ ЗАЩИТЫ ОТ XSS (Экранирование спецсимволов)
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     const fullUrl = window.location.href.replace(/&amp;/g, '&');
     let qString = fullUrl.includes('?') ? fullUrl.split('?')[1] : '';
     const params = new URLSearchParams(qString);
@@ -192,7 +202,6 @@
     async function start() {
         const isAdmin = (role === 'admin' || role === 'editor' || viewerId === MY_VK_ID);
 
-        // ПУНКТ 2А: Пользователь открыл прямую ссылку (без группы)
         if (!gid) {
             hideAll();
             document.getElementById('landingView').classList.remove('hidden');
@@ -224,11 +233,10 @@
                 allForms = [];
             }
 
-            const hash = window.location.hash;
-            let requestedFormId = hash.includes('form=') ? hash.split('form=')[1] : null;
+            // Читаем ID формы из параметров (?) или из хэша (#)
+            let requestedFormId = params.get('form') || (window.location.hash.includes('form=') ? window.location.hash.split('form=')[1] : null);
 
             if (isAdmin && !requestedFormId) {
-                // ПУНКТ 2В: Админ видит Дашборд
                 showDashboard();
             } else {
                 if (allForms.length > 0) {
@@ -239,7 +247,6 @@
                     }
                     renderClientForm(formToShow, false);
                 } else {
-                    // ПУНКТ 2Б: Заглушка для подписчика в пустой группе
                     hideAll();
                     document.getElementById('subscriberStubView').classList.remove('hidden');
                 }
@@ -256,7 +263,6 @@
         const container = document.getElementById('formsListContainer');
         container.innerHTML = '';
 
-        // ПУНКТ 2Б: Инструкция для админа в новой группе
         if (allForms.length === 0) {
             container.innerHTML = `
                 <div style="text-align:left; background:#F2F3F5; padding:15px; border-radius:12px; margin-bottom:15px; font-size:14px;">
@@ -275,12 +281,13 @@
         allForms.forEach((form) => {
             const div = document.createElement('div');
             div.className = 'form-card';
+            // ИСПОЛЬЗУЕМ escapeHTML для защиты от XSS
             div.innerHTML = `
-                <h3>${form.internal_name || form.title || 'Форма без названия'}</h3>
+                <h3>${escapeHTML(form.internal_name || form.title || 'Форма без названия')}</h3>
                 <div class="form-card-actions">
-                    <button class="btn-main" onclick="openEditor('${form.form_id}')">⚙️ Ред.</button>
-                    <button class="btn-add" onclick="copyLink('${form.form_id}')">🔗 Ссылка</button>
-                    <button class="btn-del" onclick="deleteForm('${form.form_id}')">Удалить</button>
+                    <button class="btn-main" onclick="openEditor('${escapeHTML(form.form_id)}')">⚙️ Ред.</button>
+                    <button class="btn-add" onclick="copyLink('${escapeHTML(form.form_id)}')">🔗 Ссылка</button>
+                    <button class="btn-del" onclick="deleteForm('${escapeHTML(form.form_id)}')">Удалить</button>
                 </div>
             `;
             container.appendChild(div);
@@ -340,19 +347,20 @@
         currentFields.forEach((f, i) => {
             const div = document.createElement('div'); 
             div.className = 'field-editor';
+            // ИСПОЛЬЗУЕМ escapeHTML в атрибутах value для защиты от XSS
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <b>Вопрос #${i+1}</b>
                     <button class="btn-del" onclick="currentFields.splice(${i},1); renderFieldsEditor()">Удалить</button>
                 </div>
-                <input type="text" value="${f.label}" oninput="currentFields[${i}].label=this.value" placeholder="Суть вопроса">
+                <input type="text" value="${escapeHTML(f.label)}" oninput="currentFields[${i}].label=this.value" placeholder="Суть вопроса">
                 <select onchange="currentFields[${i}].type=this.value; renderFieldsEditor()">
                     <option value="text" ${f.type==='text'?'selected':''}>Короткий текст</option>
                     <option value="textarea" ${f.type==='textarea'?'selected':''}>Длинный ответ</option>
                     <option value="select" ${f.type==='select'?'selected':''}>Один вариант (Точки)</option>
                     <option value="checkbox" ${f.type==='checkbox'?'selected':''}>Несколько вариантов (Галочки)</option>
                 </select>
-                ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" value="${f.options || ''}" oninput="currentFields[${i}].options=this.value" placeholder="Варианты через запятую (Да, Нет)">` : ''}
+                ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" value="${escapeHTML(f.options || '')}" oninput="currentFields[${i}].options=this.value" placeholder="Варианты через запятую (Да, Нет)">` : ''}
             `;
             list.appendChild(div);
         });
@@ -410,6 +418,7 @@
             document.getElementById('userBanner').style.display = 'none'; 
         }
         
+        // innerText встроенно защищает от XSS
         document.getElementById('userTitle').innerText = data.title || 'Форма';
         document.getElementById('userSubtitle').innerText = data.subtitle || '';
         
@@ -458,7 +467,6 @@
             }
         });
 
-        // ПУНКТ 1: Оборачиваем ссылку на политику в vk.ru/away.php
         if (data.privacy_url) { 
             const safeUrl = `https://vk.ru/away.php?to=${encodeURIComponent(data.privacy_url)}`;
             document.getElementById('userPrivacy').innerHTML = `Нажимая кнопку, вы соглашаетесь с <a href="${safeUrl}" target="_blank">политикой конфиденциальности</a>`; 
