@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.13</title>
+    <title>Конструктор заявок 3.14</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -42,7 +42,8 @@
         .form-card { background: #F2F3F5; padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: left; border: 1px solid #DCE1E6; }
         .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); overflow-wrap: break-word; }
         .form-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-        .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; }
+        /* ИСПРАВЛЕНИЕ БАГА С КНОПКАМИ: Обнуляем margin и задаем единый border-radius */
+        .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; margin: 0; border-radius: 8px; }
         
         .options-group { text-align: left; margin-bottom: 15px; background: #F2F3F5; padding: 12px; border-radius: 10px; border: 1px solid #DCE1E6;}
         .options-group label { display: flex; align-items: center; font-weight: normal; margin-bottom: 8px; font-size: 14px; cursor: pointer;}
@@ -466,7 +467,6 @@
     }
 
     async function saveSettings() {
-        // ДОБАВЛЕНА ВАЛИДАЦИЯ ПУСТОГО ИМЕНИ
         const formNameInput = document.getElementById('editFormName');
         if (!formNameInput.value.trim()) {
             showNotify('Пожалуйста, введите название формы', true);
