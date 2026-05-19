@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.8</title>
+    <title>Конструктор заявок 3.9</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -16,7 +16,21 @@
         h2, h3.secret-trigger { margin: 0 0 8px; font-size: 20px; text-align: left; user-select: none; -webkit-user-select: none; cursor: default; } 
         p.desc { color: var(--text-soft); font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-align: left; }
         label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; }
-        input[type="text"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #DCE1E6; box-sizing: border-box; font-size: 15px; background: #F2F3F5; }
+        input[type="text"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #DCE1E6; box-sizing: border-box; font-size: 15px; background: #F2F3F5; font-family: inherit; }
+        
+        /* Исправление бага со стрелкой: Кастомный дизайн для select */
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818C99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 40px !important;
+            cursor: pointer;
+        }
+
         button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 16px; }
         .btn-main { background: var(--vk-blue); color: #fff; }
         .btn-add { background: #E1E3E6; color: #444; margin-bottom: 10px; font-size: 14px; }
@@ -136,7 +150,6 @@
 
     vkBridge.send('VKWebAppInit');
 
-    // ФУНКЦИЯ ЗАЩИТЫ ОТ XSS (Экранирование спецсимволов)
     function escapeHTML(str) {
         if (!str) return '';
         return String(str)
@@ -233,7 +246,6 @@
                 allForms = [];
             }
 
-            // Читаем ID формы из параметров (?) или из хэша (#)
             let requestedFormId = params.get('form') || (window.location.hash.includes('form=') ? window.location.hash.split('form=')[1] : null);
 
             if (isAdmin && !requestedFormId) {
@@ -281,7 +293,6 @@
         allForms.forEach((form) => {
             const div = document.createElement('div');
             div.className = 'form-card';
-            // ИСПОЛЬЗУЕМ escapeHTML для защиты от XSS
             div.innerHTML = `
                 <h3>${escapeHTML(form.internal_name || form.title || 'Форма без названия')}</h3>
                 <div class="form-card-actions">
@@ -347,7 +358,6 @@
         currentFields.forEach((f, i) => {
             const div = document.createElement('div'); 
             div.className = 'field-editor';
-            // ИСПОЛЬЗУЕМ escapeHTML в атрибутах value для защиты от XSS
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <b>Вопрос #${i+1}</b>
@@ -418,7 +428,6 @@
             document.getElementById('userBanner').style.display = 'none'; 
         }
         
-        // innerText встроенно защищает от XSS
         document.getElementById('userTitle').innerText = data.title || 'Форма';
         document.getElementById('userSubtitle').innerText = data.subtitle || '';
         
