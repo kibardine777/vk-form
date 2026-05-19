@@ -36,4 +36,592 @@
         .btn-del { background: #FF3B30; color: #fff; width: auto; padding: 6px 12px; font-size: 11px; border-radius: 6px; }
         .btn-preview { background: #4BB34B; color: #fff; margin-bottom: 10px; }
         .field-editor { background: #F5F6F7; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #E1E3E6; text-align: left; }
-        .privacy { font-size: 12px; color:
+        .privacy { font-size: 12px; color: var(--text-soft); margin-top: 15px; }
+        .privacy a { color: var(--vk-blue); text-decoration: none; }
+        
+        .form-card { background: #F2F3F5; padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: left; border: 1px solid #DCE1E6; }
+        .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); overflow-wrap: break-word; }
+        .form-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; }
+        
+        .options-group { text-align: left; margin-bottom: 15px; background: #F2F3F5; padding: 12px; border-radius: 10px; border: 1px solid #DCE1E6;}
+        .options-group label { display: flex; align-items: center; font-weight: normal; margin-bottom: 8px; font-size: 14px; cursor: pointer;}
+        .options-group input { width: auto; margin: 0 10px 0 0; cursor: pointer; }
+        
+        #loading { margin-top: 50px; text-align: center; color: var(--text-soft); font-size: 15px; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto;}
+        .loader-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(0,119,255,0.2); border-radius: 50%; border-top-color: var(--vk-blue); animation: spin 1s ease-in-out infinite; margin-bottom: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; pointer-events: none; }
+        .toast-error { background: #FF3B30 !important; }
+        
+        .feature-list { text-align: left; font-size: 14px; color: #444; margin-bottom: 25px; line-height: 1.6; background: #F2F3F5; padding: 15px; border-radius: 12px; }
+    </style>
+</head>
+<body>
+
+<div id="toast" class="hidden">Уведомление</div>
+
+<div id="modalOverlay" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9998; backdrop-filter: blur(3px);"></div>
+<div id="customModal" class="container hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 90%; max-width: 320px; padding: 20px;">
+    <h3 id="modalTitle" style="margin-top:0; font-size:18px; text-align:center;">Заголовок</h3>
+    <p id="modalDesc" class="desc" style="margin-bottom:15px; text-align:center;"></p>
+    <input type="text" id="modalInput" class="hidden" style="margin-bottom:20px;">
+    <div style="display:flex; gap:10px;">
+        <button id="modalBtnCancel" class="btn-add" onclick="closeModal(false)" style="margin:0;">Отмена</button>
+        <button id="modalBtnOk" class="btn-main" onclick="closeModal(true)" style="margin:0;">ОК</button>
+    </div>
+</div>
+
+<div id="loading">
+    <div class="loader-spinner"></div><br>
+    <span id="loadText">Загрузка системы...</span>
+</div>
+
+<div id="landingView" class="container hidden">
+    <div style="font-size: 40px; margin-bottom: 10px;">📋</div>
+    <h2 style="text-align:center;">Конструктор заявок</h2>
+    <p class="desc" style="text-align:center;">Удобный и бесплатный инструмент для сбора заявок из вашего сообщества ВКонтакте. Создавайте анкеты, получайте ответы на Email и повышайте конверсию!</p>
+    <div class="feature-list">
+        <b>Что умеет приложение:</b><br>
+        ✅ Несколько форм под разные акции<br>
+        ✅ Автозаполнение имени пользователя ВК<br>
+        ✅ Моментальные уведомления на почту<br>
+        ✅ Красивый интерфейс и настройка за 2 минуты
+    </div>
+    <button class="btn-main" onclick="vkBridge.send('VKWebAppAddToCommunity')">Добавить в сообщество</button>
+</div>
+
+<div id="subscriberStubView" class="container hidden" style="padding: 40px 20px;">
+    <div style="font-size: 40px; margin-bottom: 10px;">⚙️</div>
+    <h2 style="text-align:center; color:var(--vk-blue);">Скоро здесь будет форма</h2>
+    <p class="desc" style="text-align:center; margin-bottom:0;">Администратор сообщества прямо сейчас настраивает это приложение. Пожалуйста, загляните сюда чуть позже!</p>
+</div>
+
+<div id="dashboardView" class="container hidden">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h2 style="margin:0;">Управление формами</h2>
+        <span style="font-size:24px; cursor:pointer;" onclick="checkSecretAdmin()">👑</span>
+    </div>
+    <p class="desc">Создавайте разные формы для акций и задач.</p>
+    <div id="formsListContainer"></div>
+    <button class="btn-main" onclick="createNewForm()" style="margin-top: 10px;">+ Создать новую форму</button>
+</div>
+
+<div id="adminView" class="container hidden">
+    <h2 id="editorTitle">⚙️ Настройка формы</h2>
+    <label>Название формы (внутреннее):</label>
+    <input type="text" id="editFormName" placeholder="Например: Летняя акция">
+    <label>Название проекта (от кого письмо):</label>
+    <input type="text" id="editProjectName" placeholder="Например: СантехФитингКомплект">
+    <label>Заголовок для клиентов:</label>
+    <input type="text" id="editTitle">
+    <label>Подзаголовок:</label>
+    <textarea id="editSubtitle"></textarea>
+    <label>Файл обложки (URL картинки):</label>
+    <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/...">
+    <label>Ключ Web3Forms (Можно несколько через запятую):</label>
+    <input type="text" id="editKey" placeholder="Например: key1, key2">
+    <label>Ссылка на политику конфиденциальности:</label>
+    <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy">
+
+    <h3 style="font-size: 16px; text-align: left; margin-top: 20px;">Настройка полей:</h3>
+    <p class="desc" style="margin-bottom: 10px;">Поля "Имя" и "Телефон" встроены по умолчанию.</p>
+    <div id="fieldsList"></div>
+    <button class="btn-add" onclick="addField()">+ Добавить свой вопрос</button>
+    <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
+    <button class="btn-preview" onclick="previewForm()">👀 Предпросмотр</button>
+    <button class="btn-main" id="saveBtn" onclick="saveSettings()">Сохранить форму</button>
+    <button class="btn-add" onclick="showDashboard()">Отмена</button>
+</div>
+
+<div id="userView" class="container hidden">
+    <img id="userBanner" class="banner" src="" alt="">
+    <h2 id="userTitle" onclick="checkSecretAdmin()"></h2>
+    <p id="userSubtitle" class="desc"></p>
+    <form id="clientForm"></form>
+    <div id="userPrivacy" class="privacy"></div>
+    <div id="previewNotice" class="hidden" style="margin-top:20px; padding:10px; background:#FFEAA7; border-radius:8px; font-size:12px; color:#D35400;">
+        <b>Режим предпросмотра.</b> Заявки не отправляются.<br><br>
+        <button class="btn-add" onclick="closePreview()" style="margin:0;">Вернуться в редактор</button>
+    </div>
+</div>
+
+<div id="successModal" class="container hidden" style="padding: 40px 20px;">
+    <h2 style="text-align: center; color: var(--vk-blue); font-size: 24px; margin-bottom: 15px;">Спасибо! 🎉</h2>
+    <p class="desc" style="text-align: center; font-size: 16px;">Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
+    <button class="btn-main" id="successReturnBtn" style="margin-top: 20px;">Понятно</button>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://dhtcpgyeygiafwngxyoc.supabase.co'; 
+    const SUPABASE_KEY = 'sb_publishable_neIIsf1I3lvQ1vvmll4pEg_IwesIUo9'; 
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    vkBridge.send('VKWebAppInit');
+
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    const fullUrl = window.location.href.replace(/&amp;/g, '&');
+    let qString = fullUrl.includes('?') ? fullUrl.split('?')[1] : '';
+    const params = new URLSearchParams(qString);
+
+    let gid = params.get('vk_group_id');
+    const role = params.get('vk_viewer_group_role'); 
+    const viewerId = params.get('vk_viewer_id');
+    const MY_VK_ID = '52069477';
+
+    let allForms = []; 
+    let editingFormId = null; 
+    let currentUserProfile = null;
+
+    // --- СИСТЕМА КАСТОМНЫХ МОДАЛОК ---
+    let modalCallback = null;
+    function showModal(title, text, type, callback, defaultVal = '') {
+        document.getElementById('modalOverlay').classList.remove('hidden');
+        document.getElementById('customModal').classList.remove('hidden');
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('modalDesc').innerText = text;
+        
+        const inp = document.getElementById('modalInput');
+        if (type === 'prompt') {
+            inp.classList.remove('hidden');
+            inp.value = defaultVal;
+            setTimeout(() => inp.focus(), 100);
+        } else {
+            inp.classList.add('hidden');
+            inp.value = '';
+        }
+        modalCallback = callback;
+    }
+
+    function closeModal(isOk) {
+        document.getElementById('modalOverlay').classList.add('hidden');
+        document.getElementById('customModal').classList.add('hidden');
+        
+        const isPrompt = !document.getElementById('modalInput').classList.contains('hidden');
+        const val = document.getElementById('modalInput').value.trim();
+        
+        if (modalCallback) {
+            if (isPrompt) {
+                modalCallback(isOk ? val : null);
+            } else {
+                modalCallback(isOk);
+            }
+            modalCallback = null;
+        }
+    }
+
+    // Обработка тройного клика
+    let tapCount = 0;
+    let tapTimeout;
+    function checkSecretAdmin() {
+        tapCount++;
+        clearTimeout(tapTimeout);
+        tapTimeout = setTimeout(() => { tapCount = 0; }, 1000); 
+        
+        if (tapCount >= 3) {
+            tapCount = 0;
+            showModal("Секретный доступ", "Пин-код (только для владельца):", "prompt", (pin) => {
+                if (pin === "777") {
+                    if (!gid) {
+                        showModal("Настройка", "Введите ID группы (только цифры):", "prompt", (newGid) => {
+                            if(newGid) { gid = newGid; start(); }
+                        });
+                    } else {
+                        showDashboard();
+                    }
+                } else if (pin !== null) {
+                    showNotify("Неверный пин-код", true);
+                }
+            });
+        }
+    }
+
+    function showNotify(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        if (isError) toast.classList.add('toast-error');
+        else toast.classList.remove('toast-error');
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+    function translit(text) {
+        const map = {'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'j','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ы':'y','э':'e','ю':'yu','я':'ya',' ':'_'};
+        return text.toLowerCase().split('').map(char => map[char] || (/[a-z0-9]/.test(char) ? char : '')).join('').substring(0, 20);
+    }
+
+    function syncFields() {
+        const editors = document.querySelectorAll('.field-editor');
+        editors.forEach((editor, i) => {
+            if (!currentFields[i]) return;
+            const labelInp = editor.querySelector('.inp-label');
+            const typeSel = editor.querySelector('.sel-type');
+            const optInp = editor.querySelector('.inp-opt');
+            
+            if (labelInp) currentFields[i].label = labelInp.value;
+            if (typeSel) currentFields[i].type = typeSel.value;
+            if (optInp) currentFields[i].options = optInp.value;
+        });
+    }
+
+    function removeField(i) {
+        syncFields();
+        currentFields.splice(i, 1);
+        renderFieldsEditor();
+    }
+
+    function changeFieldType(i, val) {
+        syncFields();
+        currentFields[i].type = val;
+        renderFieldsEditor();
+    }
+
+    function addField() { 
+        syncFields();
+        currentFields.push({ label: 'Новый вопрос', type: 'text', options: '' }); 
+        renderFieldsEditor(); 
+    }
+
+    async function start() {
+        const isAdmin = (role === 'admin' || role === 'editor' || viewerId === MY_VK_ID);
+
+        if (!gid) {
+            hideAll();
+            document.getElementById('landingView').classList.remove('hidden');
+            return;
+        }
+
+        let loadTimeout = setTimeout(() => {
+            const loadEl = document.getElementById('loading');
+            if (loadEl && !loadEl.classList.contains('hidden')) {
+                loadEl.innerHTML = `<span style="color:#FF3B30;">Долгая загрузка сети...</span><br><br><button onclick="location.reload()" class="btn-main" style="padding:10px;">Обновить страницу</button>`;
+            }
+        }, 6000);
+
+        try { currentUserProfile = await vkBridge.send('VKWebAppGetUserInfo'); } catch(e) {}
+
+        try {
+            const { data, error } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).maybeSingle();
+            
+            clearTimeout(loadTimeout); 
+            if (error) throw error;
+
+            if (data && data.fields) {
+                if (data.fields.length > 0 && data.fields[0].form_id) {
+                    allForms = data.fields; 
+                } else {
+                    allForms = [{ form_id: generateId(), internal_name: 'Основная форма', project_name: data.project_name || '', title: data.title || '', subtitle: data.subtitle || '', image_url: data.image_url || '', web3forms_key: data.web3forms_key || '', privacy_url: data.privacy_url || '', fields: data.fields || [] }];
+                }
+            } else {
+                allForms = [];
+            }
+
+            let requestedFormId = params.get('form') || (window.location.hash.includes('form=') ? window.location.hash.split('form=')[1] : null);
+
+            if (isAdmin && !requestedFormId) {
+                showDashboard();
+            } else {
+                if (allForms.length > 0) {
+                    let formToShow = allForms[0]; 
+                    if (requestedFormId) {
+                        const found = allForms.find(f => f.form_id === requestedFormId);
+                        if (found) formToShow = found;
+                    }
+                    renderClientForm(formToShow, false);
+                } else {
+                    hideAll();
+                    document.getElementById('subscriberStubView').classList.remove('hidden');
+                }
+            }
+        } catch (err) {
+            clearTimeout(loadTimeout);
+            document.getElementById('loading').innerHTML = `<span style="color:#FF3B30;">Ошибка подключения к базе.</span><br><br><button onclick="location.reload()" class="btn-main" style="padding:10px;">Попробовать снова</button>`;
+        }
+    }
+
+    function showDashboard() {
+        hideAll();
+        document.getElementById('dashboardView').classList.remove('hidden');
+        const container = document.getElementById('formsListContainer');
+        container.innerHTML = '';
+
+        if (allForms.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:left; background:#F2F3F5; padding:15px; border-radius:12px; margin-bottom:15px; font-size:14px;">
+                    <b>👋 Добро пожаловать! Как это работает:</b>
+                    <ol style="margin-top:10px; padding-left:20px; line-height:1.5; color:#444;">
+                        <li>Нажмите кнопку «Создать новую форму» ниже.</li>
+                        <li>Добавьте свои вопросы и настройте оформление.</li>
+                        <li>Укажите Email (ключ Web3Forms), куда будут приходить заявки.</li>
+                        <li>Сохраните форму и скопируйте ссылку для виджета!</li>
+                    </ol>
+                </div>
+            `;
+            return;
+        }
+
+        allForms.forEach((form) => {
+            const div = document.createElement('div');
+            div.className = 'form-card';
+            div.innerHTML = `
+                <h3>${escapeHTML(form.internal_name || form.title || 'Форма без названия')}</h3>
+                <div class="form-card-actions">
+                    <button class="btn-main" onclick="openEditor('${escapeHTML(form.form_id)}')">⚙️ Ред.</button>
+                    <button class="btn-add" onclick="copyLink('${escapeHTML(form.form_id)}')">🔗 Ссылка</button>
+                    <button class="btn-del" onclick="deleteForm('${escapeHTML(form.form_id)}')">Удалить</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function deleteForm(id) {
+        showModal("Удаление", "Вы точно хотите удалить эту форму?", "confirm", (isOk) => {
+            if (isOk) {
+                allForms = allForms.filter(f => f.form_id !== id);
+                saveToDB();
+                showDashboard();
+                showNotify('Форма удалена');
+            }
+        });
+    }
+
+    function copyLink(id) {
+        const appUrl = `https://vk.com/app${params.get('vk_app_id')}_-${gid}?form=${id}`;
+        vkBridge.send("VKWebAppCopyText", {"text": appUrl})
+            .then(() => showNotify("Ссылка скопирована!"))
+            .catch(() => {
+                showModal("Ссылка на форму", "Скопируйте вашу ссылку:", "prompt", () => {}, appUrl);
+            });
+    }
+
+    let currentFields = [];
+
+    function openEditor(id, isNew = false) {
+        hideAll();
+        document.getElementById('adminView').classList.remove('hidden');
+        editingFormId = id;
+        
+        let form = allForms.find(f => f.form_id === id) || {};
+        
+        document.getElementById('editFormName').value = form.internal_name || (isNew ? 'Новая форма' : '');
+        document.getElementById('editProjectName').value = form.project_name || '';
+        document.getElementById('editTitle').value = form.title || '';
+        document.getElementById('editSubtitle').value = form.subtitle || '';
+        document.getElementById('editImage').value = form.image_url || '';
+        document.getElementById('editKey').value = form.web3forms_key || '';
+        document.getElementById('editPrivacy').value = form.privacy_url || '';
+        
+        currentFields = form.fields || [];
+        renderFieldsEditor();
+    }
+
+    function renderFieldsEditor() {
+        const list = document.getElementById('fieldsList'); 
+        list.innerHTML = '';
+        currentFields.forEach((f, i) => {
+            const div = document.createElement('div'); 
+            div.className = 'field-editor';
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <b>Вопрос #${i+1}</b>
+                    <button class="btn-del" onclick="removeField(${i})">Удалить</button>
+                </div>
+                <input type="text" class="inp-label" value="${escapeHTML(f.label)}" placeholder="Суть вопроса">
+                <select class="sel-type" onchange="changeFieldType(${i}, this.value)">
+                    <option value="text" ${f.type==='text'?'selected':''}>Короткий текст</option>
+                    <option value="textarea" ${f.type==='textarea'?'selected':''}>Длинный ответ</option>
+                    <option value="select" ${f.type==='select'?'selected':''}>Один вариант (Точки)</option>
+                    <option value="checkbox" ${f.type==='checkbox'?'selected':''}>Несколько вариантов (Галочки)</option>
+                </select>
+                ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" class="inp-opt" value="${escapeHTML(f.options || '')}" placeholder="Варианты через запятую (Да, Нет)">` : ''}
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function collectFormData() {
+        syncFields(); 
+        return {
+            form_id: editingFormId, internal_name: document.getElementById('editFormName').value || 'Без названия', project_name: document.getElementById('editProjectName').value, title: document.getElementById('editTitle').value, subtitle: document.getElementById('editSubtitle').value, image_url: document.getElementById('editImage').value, web3forms_key: document.getElementById('editKey').value, privacy_url: document.getElementById('editPrivacy').value, fields: currentFields
+        };
+    }
+
+    async function saveSettings() {
+        document.getElementById('saveBtn').disabled = true;
+        const newFormData = collectFormData();
+        
+        const existingIndex = allForms.findIndex(f => f.form_id === editingFormId);
+        if (existingIndex >= 0) allForms[existingIndex] = newFormData;
+        else allForms.push(newFormData);
+
+        await saveToDB();
+        document.getElementById('saveBtn').disabled = false;
+        showNotify('Настройки успешно сохранены!');
+        showDashboard();
+    }
+
+    async function saveToDB() {
+        const payload = { vk_group_id: gid, fields: allForms }; 
+        await _supabase.from('forms').upsert(payload, { onConflict: 'vk_group_id' });
+    }
+
+    function previewForm() {
+        const fakeData = collectFormData();
+        renderClientForm(fakeData, true);
+    }
+    
+    function closePreview() {
+        hideAll();
+        document.getElementById('adminView').classList.remove('hidden');
+    }
+
+    function renderClientForm(data, isPreview = false) {
+        hideAll();
+        document.getElementById('userView').classList.remove('hidden');
+        
+        if (isPreview) {
+            document.getElementById('previewNotice').classList.remove('hidden');
+        } else {
+            document.getElementById('previewNotice').classList.add('hidden');
+        }
+
+        if (data.image_url) { 
+            document.getElementById('userBanner').src = data.image_url; 
+            document.getElementById('userBanner').style.display = 'block';
+        } else { 
+            document.getElementById('userBanner').style.display = 'none'; 
+        }
+        
+        document.getElementById('userTitle').innerText = data.title || 'Форма';
+        document.getElementById('userSubtitle').innerText = data.subtitle || '';
+        
+        const form = document.getElementById('clientForm'); 
+        form.innerHTML = '';
+
+        form.innerHTML += `
+            <label>Ваше имя</label>
+            <input type="text" name="Q0_Name" id="clientNameInput" required>
+            <label>Номер телефона</label>
+            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required>
+        `;
+
+        data.fields.forEach((f, index) => {
+            const safeName = `Q${index+1}_${translit(f.label)}`;
+            const lbl = document.createElement('label'); lbl.innerText = f.label; 
+            form.appendChild(lbl);
+            
+            if (f.type === 'select') {
+                const wrap = document.createElement('div'); wrap.className = 'options-group';
+                (f.options || '').split(',').forEach((o, i) => { 
+                    const label = document.createElement('label');
+                    const rb = document.createElement('input'); 
+                    rb.type = 'radio'; 
+                    rb.name = safeName; 
+                    rb.value = o.trim();
+                    if (i === 0) rb.required = true; 
+                    label.appendChild(rb); 
+                    label.appendChild(document.createTextNode(o.trim()));
+                    wrap.appendChild(label);
+                });
+                form.appendChild(wrap);
+            } else if (f.type === 'checkbox') {
+                const wrap = document.createElement('div'); wrap.className = 'options-group';
+                (f.options || '').split(',').forEach(o => { 
+                    const label = document.createElement('label');
+                    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.name = safeName; cb.value = o.trim();
+                    label.appendChild(cb); label.appendChild(document.createTextNode(o.trim()));
+                    wrap.appendChild(label);
+                });
+                form.appendChild(wrap);
+            } else if (f.type === 'textarea') {
+                const ta = document.createElement('textarea'); ta.name = safeName; ta.required = true; form.appendChild(ta);
+            } else {
+                const inp = document.createElement('input'); inp.type = 'text'; inp.name = safeName; inp.required = true; form.appendChild(inp);
+            }
+        });
+
+        if (data.privacy_url) { 
+            const safeUrl = `https://vk.ru/away.php?to=${encodeURIComponent(data.privacy_url)}`;
+            document.getElementById('userPrivacy').innerHTML = `Нажимая кнопку, вы соглашаетесь с <a href="${safeUrl}" target="_blank">политикой конфиденциальности</a>`; 
+        }
+
+        const btn = document.createElement('button'); 
+        btn.className = 'btn-main'; 
+        btn.innerText = isPreview ? 'Отправить (тест)' : 'Отправить заявку'; 
+        btn.style.marginTop = '15px'; 
+        form.appendChild(btn);
+
+        if (currentUserProfile) {
+            document.getElementById('clientNameInput').value = `${currentUserProfile.first_name} ${currentUserProfile.last_name}`;
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault(); 
+            if (isPreview) { 
+                showNotify('В режиме предпросмотра данные не отправляются!'); 
+                return; 
+            }
+            
+            btn.disabled = true; btn.innerText = 'Отправка...';
+            
+            const keys = (data.web3forms_key || '').split(',').map(k => k.trim()).filter(k => k);
+            if (keys.length === 0) {
+                showNotify('Ошибка: не указан ключ почты админа!', true);
+                btn.disabled = false; btn.innerText = 'Отправить заявку'; return;
+            }
+
+            const formData = new FormData(form);
+            formData.append("from_name", data.project_name || "Новая форма ВК");
+            formData.append("subject", `Лид: ${data.title || 'Заявка'}`);
+            
+            let legend = "\n\n--- Расшифровка вопросов ---\nИмя и Телефон указаны в начале письма.\n";
+            data.fields.forEach((f, i) => legend += `Q${i+1}: ${f.label}\n`);
+            formData.append("Questions_Legend", legend);
+            
+            try {
+                for (let key of keys) {
+                    formData.set("access_key", key);
+                    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
+                }
+                
+                document.getElementById('userView').innerHTML = `
+                    <div style="padding: 30px 10px; text-align: center;">
+                        <h2 style="color: #0077FF; font-size: 24px; margin-bottom: 15px;">Спасибо! 🎉</h2>
+                        <p style="color: #818C99; font-size: 16px; margin-bottom: 30px;">Ваша заявка успешно отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
+                        <button class="btn-main" onclick="vkBridge.send('VKWebAppClose', {'status': 'success'})">Понятно, вернуться в группу</button>
+                    </div>
+                `;
+            } catch (err) {
+                showNotify('Произошла ошибка сети. Попробуйте еще раз.', true); 
+                btn.disabled = false; btn.innerText = 'Отправить заявку';
+            }
+        };
+    }
+
+    function hideAll() {
+        document.getElementById('landingView').classList.add('hidden');
+        document.getElementById('subscriberStubView').classList.add('hidden');
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('dashboardView').classList.add('hidden');
+        document.getElementById('adminView').classList.add('hidden');
+        document.getElementById('userView').classList.add('hidden');
+        document.getElementById('successModal').classList.add('hidden');
+    }
+
+    start();
+</script>
+</body>
+</html>
