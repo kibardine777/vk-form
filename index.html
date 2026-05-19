@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.15</title>
+    <title>Конструктор заявок 3.16</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -40,7 +40,6 @@
         .privacy a { color: var(--vk-blue); text-decoration: none; }
         
         .form-card { background: #F2F3F5; padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: left; border: 1px solid #DCE1E6; width: 100%; box-sizing: border-box; }
-        /* ИСПРАВЛЕНИЕ: Жесткий перенос текста для длинных бессмысленных строк */
         .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; }
         .form-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; margin: 0; border-radius: 8px; }
@@ -132,7 +131,7 @@
     <button class="btn-add" onclick="addField()">+ Добавить свой вопрос</button>
     <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
     <button class="btn-preview" onclick="previewForm()">👀 Предпросмотр</button>
-    <button class="btn-main" id="saveBtn" onclick="saveSettings()">Сохранить форму</button>
+    <button class="btn-main" id="saveBtn" onclick="saveSettings()" style="margin-bottom: 10px;">Сохранить форму</button>
     <button class="btn-add" onclick="showDashboard()">Отмена</button>
 </div>
 
