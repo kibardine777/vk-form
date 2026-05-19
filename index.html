@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.12</title>
+    <title>Конструктор заявок 3.13</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -110,7 +110,7 @@
 
 <div id="adminView" class="container hidden">
     <h2 id="editorTitle">⚙️ Настройка формы</h2>
-    <label>Название формы (внутреннее):</label>
+    <label>Название формы (внутреннее) <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editFormName" placeholder="Например: Летняя акция" maxlength="200">
     <label>Название проекта (от кого письмо):</label>
     <input type="text" id="editProjectName" placeholder="Например: СантехФитингКомплект" maxlength="200">
@@ -414,7 +414,7 @@
         
         let form = allForms.find(f => f.form_id === id) || {};
         
-        document.getElementById('editFormName').value = form.internal_name || (isNew ? 'Новая форма' : '');
+        document.getElementById('editFormName').value = form.internal_name || (isNew ? '' : '');
         document.getElementById('editProjectName').value = form.project_name || '';
         document.getElementById('editTitle').value = form.title || '';
         document.getElementById('editSubtitle').value = form.subtitle || '';
@@ -432,7 +432,6 @@
         currentFields.forEach((f, i) => {
             const div = document.createElement('div'); 
             div.className = 'field-editor';
-            // Добавлены атрибуты maxlength в поля настройки вопросов
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <b>Вопрос #${i+1}</b>
@@ -454,11 +453,27 @@
     function collectFormData() {
         syncFields(); 
         return {
-            form_id: editingFormId, internal_name: document.getElementById('editFormName').value || 'Без названия', project_name: document.getElementById('editProjectName').value, title: document.getElementById('editTitle').value, subtitle: document.getElementById('editSubtitle').value, image_url: document.getElementById('editImage').value, web3forms_key: document.getElementById('editKey').value, privacy_url: document.getElementById('editPrivacy').value, fields: currentFields
+            form_id: editingFormId, 
+            internal_name: document.getElementById('editFormName').value.trim(), 
+            project_name: document.getElementById('editProjectName').value, 
+            title: document.getElementById('editTitle').value, 
+            subtitle: document.getElementById('editSubtitle').value, 
+            image_url: document.getElementById('editImage').value, 
+            web3forms_key: document.getElementById('editKey').value, 
+            privacy_url: document.getElementById('editPrivacy').value, 
+            fields: currentFields
         };
     }
 
     async function saveSettings() {
+        // ДОБАВЛЕНА ВАЛИДАЦИЯ ПУСТОГО ИМЕНИ
+        const formNameInput = document.getElementById('editFormName');
+        if (!formNameInput.value.trim()) {
+            showNotify('Пожалуйста, введите название формы', true);
+            formNameInput.focus();
+            return;
+        }
+
         document.getElementById('saveBtn').disabled = true;
         const newFormData = collectFormData();
         
@@ -510,7 +525,6 @@
         const form = document.getElementById('clientForm'); 
         form.innerHTML = '';
 
-        // Добавлены атрибуты maxlength в поля заполнения для клиента
         form.innerHTML += `
             <label>Ваше имя</label>
             <input type="text" name="Q0_Name" id="clientNameInput" required maxlength="100">
