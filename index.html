@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.11</title>
+    <title>Конструктор заявок 3.12</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -66,7 +66,7 @@
 <div id="customModal" class="container hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 90%; max-width: 320px; padding: 20px;">
     <h3 id="modalTitle" style="margin-top:0; font-size:18px; text-align:center;">Заголовок</h3>
     <p id="modalDesc" class="desc" style="margin-bottom:15px; text-align:center;"></p>
-    <input type="text" id="modalInput" class="hidden" style="margin-bottom:20px;">
+    <input type="text" id="modalInput" class="hidden" style="margin-bottom:20px;" maxlength="200">
     <div style="display:flex; gap:10px;">
         <button id="modalBtnCancel" class="btn-add" onclick="closeModal(false)" style="margin:0;">Отмена</button>
         <button id="modalBtnOk" class="btn-main" onclick="closeModal(true)" style="margin:0;">ОК</button>
@@ -111,19 +111,19 @@
 <div id="adminView" class="container hidden">
     <h2 id="editorTitle">⚙️ Настройка формы</h2>
     <label>Название формы (внутреннее):</label>
-    <input type="text" id="editFormName" placeholder="Например: Летняя акция">
+    <input type="text" id="editFormName" placeholder="Например: Летняя акция" maxlength="200">
     <label>Название проекта (от кого письмо):</label>
-    <input type="text" id="editProjectName" placeholder="Например: СантехФитингКомплект">
+    <input type="text" id="editProjectName" placeholder="Например: СантехФитингКомплект" maxlength="200">
     <label>Заголовок для клиентов:</label>
-    <input type="text" id="editTitle">
+    <input type="text" id="editTitle" maxlength="200">
     <label>Подзаголовок:</label>
-    <textarea id="editSubtitle"></textarea>
+    <textarea id="editSubtitle" maxlength="500"></textarea>
     <label>Файл обложки (URL картинки):</label>
-    <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/...">
+    <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/..." maxlength="300">
     <label>Ключ Web3Forms (Можно несколько через запятую):</label>
-    <input type="text" id="editKey" placeholder="Например: key1, key2">
+    <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
     <label>Ссылка на политику конфиденциальности:</label>
-    <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy">
+    <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy" maxlength="300">
 
     <h3 style="font-size: 16px; text-align: left; margin-top: 20px;">Настройка полей:</h3>
     <p class="desc" style="margin-bottom: 10px;">Поля "Имя" и "Телефон" встроены по умолчанию.</p>
@@ -183,7 +183,6 @@
     let editingFormId = null; 
     let currentUserProfile = null;
 
-    // --- СИСТЕМА КАСТОМНЫХ МОДАЛОК ---
     let modalCallback = null;
     function showModal(title, text, type, callback, defaultVal = '') {
         document.getElementById('modalOverlay').classList.remove('hidden');
@@ -220,7 +219,6 @@
         }
     }
 
-    // Обработка тройного клика
     let tapCount = 0;
     let tapTimeout;
     function checkSecretAdmin() {
@@ -434,19 +432,20 @@
         currentFields.forEach((f, i) => {
             const div = document.createElement('div'); 
             div.className = 'field-editor';
+            // Добавлены атрибуты maxlength в поля настройки вопросов
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <b>Вопрос #${i+1}</b>
                     <button class="btn-del" onclick="removeField(${i})">Удалить</button>
                 </div>
-                <input type="text" class="inp-label" value="${escapeHTML(f.label)}" placeholder="Суть вопроса">
+                <input type="text" class="inp-label" value="${escapeHTML(f.label)}" placeholder="Суть вопроса" maxlength="200">
                 <select class="sel-type" onchange="changeFieldType(${i}, this.value)">
                     <option value="text" ${f.type==='text'?'selected':''}>Короткий текст</option>
                     <option value="textarea" ${f.type==='textarea'?'selected':''}>Длинный ответ</option>
                     <option value="select" ${f.type==='select'?'selected':''}>Один вариант (Точки)</option>
                     <option value="checkbox" ${f.type==='checkbox'?'selected':''}>Несколько вариантов (Галочки)</option>
                 </select>
-                ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" class="inp-opt" value="${escapeHTML(f.options || '')}" placeholder="Варианты через запятую (Да, Нет)">` : ''}
+                ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" class="inp-opt" value="${escapeHTML(f.options || '')}" placeholder="Варианты через запятую (Да, Нет)" maxlength="300">` : ''}
             `;
             list.appendChild(div);
         });
@@ -511,11 +510,12 @@
         const form = document.getElementById('clientForm'); 
         form.innerHTML = '';
 
+        // Добавлены атрибуты maxlength в поля заполнения для клиента
         form.innerHTML += `
             <label>Ваше имя</label>
-            <input type="text" name="Q0_Name" id="clientNameInput" required>
+            <input type="text" name="Q0_Name" id="clientNameInput" required maxlength="100">
             <label>Номер телефона</label>
-            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required>
+            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required maxlength="20">
         `;
 
         data.fields.forEach((f, index) => {
@@ -547,9 +547,9 @@
                 });
                 form.appendChild(wrap);
             } else if (f.type === 'textarea') {
-                const ta = document.createElement('textarea'); ta.name = safeName; ta.required = true; form.appendChild(ta);
+                const ta = document.createElement('textarea'); ta.name = safeName; ta.required = true; ta.maxLength = 1000; form.appendChild(ta);
             } else {
-                const inp = document.createElement('input'); inp.type = 'text'; inp.name = safeName; inp.required = true; form.appendChild(inp);
+                const inp = document.createElement('input'); inp.type = 'text'; inp.name = safeName; inp.required = true; inp.maxLength = 300; form.appendChild(inp);
             }
         });
 
