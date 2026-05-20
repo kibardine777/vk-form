@@ -61,6 +61,7 @@
         .toast-error { background: #FF3B30 !important; }
         
         .feature-list { text-align: left; font-size: 14px; color: #444; margin-bottom: 25px; line-height: 1.6; background: #F2F3F5; padding: 15px; border-radius: 12px; }
+        .no-scroll { overflow: hidden; }
     </style>
 </head>
 <body>
@@ -186,12 +187,20 @@
         document.getElementById('customModal').classList.remove('hidden');
         document.getElementById('modalTitle').innerText = title;
         document.getElementById('modalDesc').innerText = text;
+        
+        // Отключаем скролл фона
+        document.body.classList.add('no-scroll'); 
+        
         modalCallback = callback;
     }
 
     function closeModal(isOk) {
         document.getElementById('modalOverlay').classList.add('hidden');
         document.getElementById('customModal').classList.add('hidden');
+        
+        // Возвращаем скролл фона
+        document.body.classList.remove('no-scroll'); 
+        
         if (modalCallback) { modalCallback(isOk); modalCallback = null; }
     }
 
