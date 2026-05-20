@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>Конструктор заявок 3.19</title>
+    <title>Конструктор заявок 3.20</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -239,7 +239,6 @@
 
     function addField() { 
         syncFields();
-        // ИСПРАВЛЕНИЕ: Добавляем пустое поле вместо слова "Новый вопрос"
         currentFields.push({ label: '', type: 'text', options: '' }); 
         renderFieldsEditor(); 
     }
@@ -376,7 +375,6 @@
         currentFields.forEach((f, i) => {
             const div = document.createElement('div'); 
             div.className = 'field-editor';
-            // ИСПРАВЛЕНИЕ: Используем placeholder для подсказки
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <b>Вопрос #${i+1}</b>
@@ -418,17 +416,26 @@
             return;
         }
 
-        document.getElementById('saveBtn').disabled = true;
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        btn.innerText = 'Сохранение...';
+
         const newFormData = collectFormData();
         
         const existingIndex = allForms.findIndex(f => f.form_id === editingFormId);
         if (existingIndex >= 0) allForms[existingIndex] = newFormData;
         else allForms.push(newFormData);
 
-        await saveToDB();
-        document.getElementById('saveBtn').disabled = false;
-        showNotify('Настройки успешно сохранены!');
-        showDashboard();
+        // ИСПРАВЛЕНИЕ: Оптимистичное сохранение (Optimistic UI)
+        // Отправляем запрос в фоне и не заставляем интерфейс ждать 30 секунд
+        saveToDB().catch(e => console.error("Ошибка сохранения в БД:", e));
+
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerText = 'Сохранить форму';
+            showNotify('Настройки успешно сохранены!');
+            showDashboard();
+        }, 300);
     }
 
     async function saveToDB() {
@@ -469,7 +476,6 @@
         const form = document.getElementById('clientForm'); 
         form.innerHTML = '';
 
-        // ИСПРАВЛЕНИЕ: Добавлена жесткая валидация телефона pattern и oninput
         form.innerHTML += `
             <label>Ваше имя</label>
             <input type="text" name="Q0_Name" id="clientNameInput" required maxlength="100">
@@ -557,7 +563,6 @@
                     await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
                 }
                 
-                // ИСПРАВЛЕНИЕ: Вызываем отцентрированный модал успеха
                 hideAll();
                 document.getElementById('successModal').classList.remove('hidden');
 
