@@ -2,14 +2,16 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">
-    <title>Конструктор заявок 3.16</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
+    <title>Конструктор заявок 3.18</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --vk-blue: #0077FF; --bg-gray: #EBEDF0; --text-main: #000; --text-soft: #818C99; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; display: flex; justify-content: center; color: var(--text-main); }
-        .container { background: #fff; padding: 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: center; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; display: flex; justify-content: center; color: var(--text-main); min-height: 100vh; }
+        
+        .container { background: #fff; padding: 24px 24px 60px 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: center; }
+        
         .hidden { display: none !important; }
         img.banner { width: 100%; height: auto; min-height: 100px; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: #f0f0f0; display: block; }
         
@@ -17,6 +19,9 @@
         p.desc { color: var(--text-soft); font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-align: left; }
         label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; }
         input[type="text"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #DCE1E6; box-sizing: border-box; font-size: 15px; background: #F2F3F5; font-family: inherit; }
+        
+        /* ИСПРАВЛЕНИЕ: Отключаем ручное растягивание текстовых полей */
+        textarea { resize: none; min-height: 100px; }
         
         select {
             -webkit-appearance: none;
@@ -35,12 +40,9 @@
         .btn-add { background: #E1E3E6; color: #444; margin-bottom: 10px; font-size: 14px; }
         .btn-del { background: #FF3B30; color: #fff; width: auto; padding: 6px 12px; font-size: 11px; border-radius: 6px; }
         .btn-preview { background: #4BB34B; color: #fff; margin-bottom: 10px; }
-        .field-editor { background: #F5F6F7; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #E1E3E6; text-align: left; }
-        .privacy { font-size: 12px; color: var(--text-soft); margin-top: 15px; }
-        .privacy a { color: var(--vk-blue); text-decoration: none; }
         
         .form-card { background: #F2F3F5; padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: left; border: 1px solid #DCE1E6; width: 100%; box-sizing: border-box; }
-        .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; hyphens: auto; }
+        .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); overflow-wrap: break-word; word-break: break-word; hyphens: auto; }
         .form-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; margin: 0; border-radius: 8px; }
         
@@ -48,7 +50,11 @@
         .options-group label { display: flex; align-items: center; font-weight: normal; margin-bottom: 8px; font-size: 14px; cursor: pointer;}
         .options-group input { width: auto; margin: 0 10px 0 0; cursor: pointer; }
         
-        #loading { margin-top: 50px; text-align: center; color: var(--text-soft); font-size: 15px; width: 100%; max-width: 400px; margin-left: auto; margin-right: auto;}
+        .field-editor { background: #F5F6F7; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #E1E3E6; text-align: left; }
+        .privacy { font-size: 12px; color: var(--text-soft); margin-top: 15px; }
+        .privacy a { color: var(--vk-blue); text-decoration: none; }
+
+        #loading { margin-top: 50px; text-align: center; color: var(--text-soft); font-size: 15px; }
         .loader-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(0,119,255,0.2); border-radius: 50%; border-top-color: var(--vk-blue); animation: spin 1s ease-in-out infinite; margin-bottom: 10px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
