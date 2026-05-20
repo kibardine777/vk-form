@@ -226,9 +226,13 @@
     }
 
     function removeField(i) {
-        syncFields();
-        currentFields.splice(i, 1);
-        renderFieldsEditor();
+        showModal("Удалить вопрос", "Вы уверены, что хотите удалить этот вопрос?", "confirm", (isOk) => {
+            if (isOk) {
+                syncFields();
+                currentFields.splice(i, 1);
+                renderFieldsEditor();
+            }
+        });
     }
 
     function changeFieldType(i, val) {
