@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>Конструктор заявок 3.18</title>
+    <title>Конструктор заявок 3.19</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --vk-blue: #0077FF; --bg-gray: #EBEDF0; --text-main: #000; --text-soft: #818C99; }
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; display: flex; justify-content: center; color: var(--text-main); min-height: 100vh; }
         
-        .container { background: #fff; padding: 24px 24px 60px 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: center; }
+        .container { background: #fff; padding: 24px 24px 60px 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: left; }
         
         .hidden { display: none !important; }
         img.banner { width: 100%; height: auto; min-height: 100px; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: #f0f0f0; display: block; }
         
-        h2, h3.secret-trigger { margin: 0 0 8px; font-size: 20px; text-align: left; user-select: none; -webkit-user-select: none; cursor: default; } 
+        h2 { margin: 0 0 8px; font-size: 20px; text-align: left; } 
         p.desc { color: var(--text-soft); font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-align: left; }
         label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; }
         input[type="text"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #DCE1E6; box-sizing: border-box; font-size: 15px; background: #F2F3F5; font-family: inherit; }
         
-        /* ИСПРАВЛЕНИЕ: Отключаем ручное растягивание текстовых полей */
         textarea { resize: none; min-height: 100px; }
         
         select {
@@ -58,7 +57,7 @@
         .loader-spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(0,119,255,0.2); border-radius: 50%; border-top-color: var(--vk-blue); animation: spin 1s ease-in-out infinite; margin-bottom: 10px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; pointer-events: none; }
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.3s; pointer-events: none; text-align: center; }
         .toast-error { background: #FF3B30 !important; }
         
         .feature-list { text-align: left; font-size: 14px; color: #444; margin-bottom: 25px; line-height: 1.6; background: #F2F3F5; padding: 15px; border-radius: 12px; }
@@ -69,10 +68,9 @@
 <div id="toast" class="hidden">Уведомление</div>
 
 <div id="modalOverlay" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9998; backdrop-filter: blur(3px);"></div>
-<div id="customModal" class="container hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 90%; max-width: 320px; padding: 20px;">
+<div id="customModal" class="container hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 90%; max-width: 320px; padding: 20px; text-align: center;">
     <h3 id="modalTitle" style="margin-top:0; font-size:18px; text-align:center;">Заголовок</h3>
     <p id="modalDesc" class="desc" style="margin-bottom:15px; text-align:center;"></p>
-    <input type="text" id="modalInput" class="hidden" style="margin-bottom:20px;" maxlength="200">
     <div style="display:flex; gap:10px;">
         <button id="modalBtnCancel" class="btn-add" onclick="closeModal(false)" style="margin:0;">Отмена</button>
         <button id="modalBtnOk" class="btn-main" onclick="closeModal(true)" style="margin:0;">ОК</button>
@@ -84,34 +82,31 @@
     <span id="loadText">Загрузка системы...</span>
 </div>
 
-<div id="landingView" class="container hidden">
+<div id="landingView" class="container hidden" style="text-align: center;">
     <div style="font-size: 40px; margin-bottom: 10px;">📋</div>
     <h2 style="text-align:center;">Конструктор заявок</h2>
-    <p class="desc" style="text-align:center;">Удобный и бесплатный инструмент для сбора заявок из вашего сообщества ВКонтакте. Создавайте анкеты, получайте ответы на Email и повышайте конверсию!</p>
+    <p class="desc" style="text-align:center;">Удобный и бесплатный инструмент для сбора заявок из вашего сообщества ВКонтакте.</p>
     <div class="feature-list">
         <b>Что умеет приложение:</b><br>
         ✅ Несколько форм под разные акции<br>
         ✅ Автозаполнение имени пользователя ВК<br>
         ✅ Моментальные уведомления на почту<br>
-        ✅ Красивый интерфейс и настройка за 2 минуты
+        ✅ Красивый интерфейс и настройка
     </div>
     <button class="btn-main" onclick="vkBridge.send('VKWebAppAddToCommunity')">Добавить в сообщество</button>
 </div>
 
-<div id="subscriberStubView" class="container hidden" style="padding: 40px 20px;">
+<div id="subscriberStubView" class="container hidden" style="padding: 40px 20px; text-align: center;">
     <div style="font-size: 40px; margin-bottom: 10px;">⚙️</div>
     <h2 style="text-align:center; color:var(--vk-blue);">Скоро здесь будет форма</h2>
     <p class="desc" style="text-align:center; margin-bottom:0;">Администратор сообщества прямо сейчас настраивает это приложение. Пожалуйста, загляните сюда чуть позже!</p>
 </div>
 
 <div id="dashboardView" class="container hidden">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <h2 style="margin:0;">Управление формами</h2>
-        <span style="font-size:24px; cursor:pointer;" onclick="checkSecretAdmin()">👑</span>
-    </div>
+    <h2 style="margin:0 0 8px 0;">Управление формами</h2>
     <p class="desc">Создавайте разные формы для акций и задач.</p>
     <div id="formsListContainer"></div>
-    <button class="btn-main" onclick="createNewForm()" style="margin-top: 10px;">+ Создать новую форму</button>
+    <button class="btn-main" onclick="createNewForm()" style="margin-top: 10px; position: relative; z-index: 10;">+ Создать новую форму</button>
 </div>
 
 <div id="adminView" class="container hidden">
@@ -143,7 +138,7 @@
 
 <div id="userView" class="container hidden">
     <img id="userBanner" class="banner" src="" alt="">
-    <h2 id="userTitle" onclick="checkSecretAdmin()"></h2>
+    <h2 id="userTitle"></h2>
     <p id="userSubtitle" class="desc"></p>
     <form id="clientForm"></form>
     <div id="userPrivacy" class="privacy"></div>
@@ -153,10 +148,11 @@
     </div>
 </div>
 
-<div id="successModal" class="container hidden" style="padding: 40px 20px;">
-    <h2 style="text-align: center; color: var(--vk-blue); font-size: 24px; margin-bottom: 15px;">Спасибо! 🎉</h2>
-    <p class="desc" style="text-align: center; font-size: 16px;">Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
-    <button class="btn-main" id="successReturnBtn" style="margin-top: 20px;">Понятно</button>
+<div id="successModal" class="container hidden" style="padding: 40px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
+    <h2 style="text-align: center !important; color: var(--vk-blue); font-size: 24px; margin-bottom: 15px; width: 100%;">Спасибо!</h2>
+    <p class="desc" style="text-align: center !important; font-size: 16px;">Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
+    <button class="btn-main" onclick="vkBridge.send('VKWebAppClose', {'status': 'success'})" style="margin-top: 20px;">Понятно, вернуться в группу</button>
 </div>
 
 <script>
@@ -168,12 +164,7 @@
 
     function escapeHTML(str) {
         if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     const fullUrl = window.location.href.replace(/&amp;/g, '&');
@@ -190,64 +181,18 @@
     let currentUserProfile = null;
 
     let modalCallback = null;
-    function showModal(title, text, type, callback, defaultVal = '') {
+    function showModal(title, text, type, callback) {
         document.getElementById('modalOverlay').classList.remove('hidden');
         document.getElementById('customModal').classList.remove('hidden');
         document.getElementById('modalTitle').innerText = title;
         document.getElementById('modalDesc').innerText = text;
-        
-        const inp = document.getElementById('modalInput');
-        if (type === 'prompt') {
-            inp.classList.remove('hidden');
-            inp.value = defaultVal;
-            setTimeout(() => inp.focus(), 100);
-        } else {
-            inp.classList.add('hidden');
-            inp.value = '';
-        }
         modalCallback = callback;
     }
 
     function closeModal(isOk) {
         document.getElementById('modalOverlay').classList.add('hidden');
         document.getElementById('customModal').classList.add('hidden');
-        
-        const isPrompt = !document.getElementById('modalInput').classList.contains('hidden');
-        const val = document.getElementById('modalInput').value.trim();
-        
-        if (modalCallback) {
-            if (isPrompt) {
-                modalCallback(isOk ? val : null);
-            } else {
-                modalCallback(isOk);
-            }
-            modalCallback = null;
-        }
-    }
-
-    let tapCount = 0;
-    let tapTimeout;
-    function checkSecretAdmin() {
-        tapCount++;
-        clearTimeout(tapTimeout);
-        tapTimeout = setTimeout(() => { tapCount = 0; }, 1000); 
-        
-        if (tapCount >= 3) {
-            tapCount = 0;
-            showModal("Секретный доступ", "Пин-код (только для владельца):", "prompt", (pin) => {
-                if (pin === "777") {
-                    if (!gid) {
-                        showModal("Настройка", "Введите ID группы (только цифры):", "prompt", (newGid) => {
-                            if(newGid) { gid = newGid; start(); }
-                        });
-                    } else {
-                        showDashboard();
-                    }
-                } else if (pin !== null) {
-                    showNotify("Неверный пин-код", true);
-                }
-            });
-        }
+        if (modalCallback) { modalCallback(isOk); modalCallback = null; }
     }
 
     function showNotify(msg, isError = false) {
@@ -294,7 +239,8 @@
 
     function addField() { 
         syncFields();
-        currentFields.push({ label: 'Новый вопрос', type: 'text', options: '' }); 
+        // ИСПРАВЛЕНИЕ: Добавляем пустое поле вместо слова "Новый вопрос"
+        currentFields.push({ label: '', type: 'text', options: '' }); 
         renderFieldsEditor(); 
     }
 
@@ -307,21 +253,11 @@
             return;
         }
 
-        let loadTimeout = setTimeout(() => {
-            const loadEl = document.getElementById('loading');
-            if (loadEl && !loadEl.classList.contains('hidden')) {
-                loadEl.innerHTML = `<span style="color:#FF3B30;">Долгая загрузка сети...</span><br><br><button onclick="location.reload()" class="btn-main" style="padding:10px;">Обновить страницу</button>`;
-            }
-        }, 6000);
-
         try { currentUserProfile = await vkBridge.send('VKWebAppGetUserInfo'); } catch(e) {}
 
         try {
             const { data, error } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).maybeSingle();
             
-            clearTimeout(loadTimeout); 
-            if (error) throw error;
-
             if (data && data.fields) {
                 if (data.fields.length > 0 && data.fields[0].form_id) {
                     allForms = data.fields; 
@@ -350,7 +286,6 @@
                 }
             }
         } catch (err) {
-            clearTimeout(loadTimeout);
             document.getElementById('loading').innerHTML = `<span style="color:#FF3B30;">Ошибка подключения к базе.</span><br><br><button onclick="location.reload()" class="btn-main" style="padding:10px;">Попробовать снова</button>`;
         }
     }
@@ -366,7 +301,7 @@
                 <div style="text-align:left; background:#F2F3F5; padding:15px; border-radius:12px; margin-bottom:15px; font-size:14px;">
                     <b>👋 Добро пожаловать! Как это работает:</b>
                     <ol style="margin-top:10px; padding-left:20px; line-height:1.5; color:#444;">
-                        <li>Нажмите кнопку «Создать новую форму» ниже.</li>
+                        <li>Нажмите синюю кнопку создания формы.</li>
                         <li>Добавьте свои вопросы и настройте оформление.</li>
                         <li>Укажите Email (ключ Web3Forms), куда будут приходить заявки.</li>
                         <li>Сохраните форму и скопируйте ссылку для виджета!</li>
@@ -391,6 +326,11 @@
         });
     }
 
+    function createNewForm() {
+        editingFormId = generateId();
+        openEditor(editingFormId, true);
+    }
+
     function deleteForm(id) {
         showModal("Удаление", "Вы точно хотите удалить эту форму?", "confirm", (isOk) => {
             if (isOk) {
@@ -406,9 +346,7 @@
         const appUrl = `https://vk.com/app${params.get('vk_app_id')}_-${gid}?form=${id}`;
         vkBridge.send("VKWebAppCopyText", {"text": appUrl})
             .then(() => showNotify("Ссылка скопирована!"))
-            .catch(() => {
-                showModal("Ссылка на форму", "Скопируйте вашу ссылку:", "prompt", () => {}, appUrl);
-            });
+            .catch(() => { showNotify("Не удалось скопировать", true); });
     }
 
     let currentFields = [];
@@ -438,12 +376,13 @@
         currentFields.forEach((f, i) => {
             const div = document.createElement('div'); 
             div.className = 'field-editor';
+            // ИСПРАВЛЕНИЕ: Используем placeholder для подсказки
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <b>Вопрос #${i+1}</b>
                     <button class="btn-del" onclick="removeField(${i})">Удалить</button>
                 </div>
-                <input type="text" class="inp-label" value="${escapeHTML(f.label)}" placeholder="Суть вопроса" maxlength="200">
+                <input type="text" class="inp-label" value="${escapeHTML(f.label)}" placeholder="Суть вашего вопроса" maxlength="200">
                 <select class="sel-type" onchange="changeFieldType(${i}, this.value)">
                     <option value="text" ${f.type==='text'?'selected':''}>Короткий текст</option>
                     <option value="textarea" ${f.type==='textarea'?'selected':''}>Длинный ответ</option>
@@ -530,16 +469,18 @@
         const form = document.getElementById('clientForm'); 
         form.innerHTML = '';
 
+        // ИСПРАВЛЕНИЕ: Добавлена жесткая валидация телефона pattern и oninput
         form.innerHTML += `
             <label>Ваше имя</label>
             <input type="text" name="Q0_Name" id="clientNameInput" required maxlength="100">
             <label>Номер телефона</label>
-            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required maxlength="20">
+            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required maxlength="20" pattern="^[\\+0-9\\s\\-\\(\\)]+$" oninput="this.value = this.value.replace(/[^0-9\\+\\-\\(\\)\\s]/g, '')">
         `;
 
         data.fields.forEach((f, index) => {
-            const safeName = `Q${index+1}_${translit(f.label)}`;
-            const lbl = document.createElement('label'); lbl.innerText = f.label; 
+            const qLabel = f.label.trim() || `Вопрос ${index+1}`;
+            const safeName = `Q${index+1}_${translit(qLabel)}`;
+            const lbl = document.createElement('label'); lbl.innerText = qLabel; 
             form.appendChild(lbl);
             
             if (f.type === 'select') {
@@ -616,13 +557,10 @@
                     await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
                 }
                 
-                document.getElementById('userView').innerHTML = `
-                    <div style="padding: 30px 10px; text-align: center;">
-                        <h2 style="color: #0077FF; font-size: 24px; margin-bottom: 15px;">Спасибо! 🎉</h2>
-                        <p style="color: #818C99; font-size: 16px; margin-bottom: 30px;">Ваша заявка успешно отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
-                        <button class="btn-main" onclick="vkBridge.send('VKWebAppClose', {'status': 'success'})">Понятно, вернуться в группу</button>
-                    </div>
-                `;
+                // ИСПРАВЛЕНИЕ: Вызываем отцентрированный модал успеха
+                hideAll();
+                document.getElementById('successModal').classList.remove('hidden');
+
             } catch (err) {
                 showNotify('Произошла ошибка сети. Попробуйте еще раз.', true); 
                 btn.disabled = false; btn.innerText = 'Отправить заявку';
