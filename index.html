@@ -163,17 +163,25 @@
 
     vkBridge.send('VKWebAppInit');
 
-    // ИСПРАВЛЕНИЕ: Прослушка изменений фрагмента для правильной навигации внутри открытого приложения
+    // ИСПРАВЛЕНИЕ: Железобетонная навигация по ссылкам
+    function handleAppNavigation(locationStr) {
+        if (!locationStr || !locationStr.includes('form=')) return;
+        const newId = locationStr.split('form=')[1].split('&')[0];
+        if (allForms && allForms.length > 0) {
+            const found = allForms.find(f => f.form_id === newId);
+            if (found) renderClientForm(found, false);
+        }
+    }
+
+    // Слушаем стандартный браузерный переход (срабатывает на большинстве телефонов)
+    window.addEventListener('hashchange', () => {
+        handleAppNavigation(window.location.hash);
+    });
+
+    // Слушаем системный сигнал ВК (как резервный вариант)
     vkBridge.subscribe((e) => {
         if (e.detail.type === 'VKWebAppChangeFragment') {
-            const loc = e.detail.data.location;
-            if (loc && loc.includes('form=')) {
-                const newId = loc.split('form=')[1];
-                if (allForms && allForms.length > 0) {
-                    const found = allForms.find(f => f.form_id === newId);
-                    if (found) renderClientForm(found, false);
-                }
-            }
+            handleAppNavigation(e.detail.data.location);
         }
     });
 
