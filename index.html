@@ -482,8 +482,22 @@
     }
 
     async function saveToDB() {
-        const payload = { vk_group_id: gid, fields: allForms }; 
-        await _supabase.from('forms').upsert(payload, { onConflict: 'vk_group_id' });
+        const payload = { 
+            vk_group_id: gid, 
+            fields: allForms,
+            launch_params: window.location.search.substring(1) // Передаем ВК-подпись на сервер
+        }; 
+        
+        // Отправляем запрос на наш защищенный Vercel API, а не напрямую в Supabase
+        const response = await fetch('/api/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error('Ошибка сервера: отказ в доступе или неверная подпись');
+        }
     }
 
     function previewForm() {
