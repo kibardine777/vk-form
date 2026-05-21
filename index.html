@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>Конструктор заявок 3.20</title>
+    <title>Конструктор заявок 3.21</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -11,6 +11,7 @@
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; display: flex; justify-content: center; color: var(--text-main); min-height: 100vh; }
         
         .container { background: #fff; padding: 24px 24px 60px 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: left; }
+        .no-scroll { overflow: hidden; }
         
         .hidden { display: none !important; }
         img.banner { width: 100%; height: auto; min-height: 100px; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: #f0f0f0; display: block; }
@@ -61,7 +62,6 @@
         .toast-error { background: #FF3B30 !important; }
         
         .feature-list { text-align: left; font-size: 14px; color: #444; margin-bottom: 25px; line-height: 1.6; background: #F2F3F5; padding: 15px; border-radius: 12px; }
-        .no-scroll { overflow: hidden; }
     </style>
 </head>
 <body>
@@ -163,9 +163,38 @@
 
     vkBridge.send('VKWebAppInit');
 
+    // ИСПРАВЛЕНИЕ: Прослушка изменений фрагмента для правильной навигации внутри открытого приложения
+    vkBridge.subscribe((e) => {
+        if (e.detail.type === 'VKWebAppChangeFragment') {
+            const loc = e.detail.data.location;
+            if (loc && loc.includes('form=')) {
+                const newId = loc.split('form=')[1];
+                if (allForms && allForms.length > 0) {
+                    const found = allForms.find(f => f.form_id === newId);
+                    if (found) renderClientForm(found, false);
+                }
+            }
+        }
+    });
+
     function escapeHTML(str) {
         if (!str) return '';
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ИСПРАВЛЕНИЕ: Кастомная маска для телефона
+    function formatPhone(e) {
+        let input = e.target.value.replace(/\D/g, '');
+        if (!input) { e.target.value = ''; return; }
+        if (input.startsWith('7') || input.startsWith('8')) {
+            input = input.substring(1);
+        }
+        let formatted = '+7';
+        if (input.length > 0) formatted += ' (' + input.substring(0, 3);
+        if (input.length > 3) formatted += ') ' + input.substring(3, 6);
+        if (input.length > 6) formatted += '-' + input.substring(6, 8);
+        if (input.length > 8) formatted += '-' + input.substring(8, 10);
+        e.target.value = formatted;
     }
 
     const fullUrl = window.location.href.replace(/&amp;/g, '&');
@@ -187,20 +216,14 @@
         document.getElementById('customModal').classList.remove('hidden');
         document.getElementById('modalTitle').innerText = title;
         document.getElementById('modalDesc').innerText = text;
-        
-        // Отключаем скролл фона
         document.body.classList.add('no-scroll'); 
-        
         modalCallback = callback;
     }
 
     function closeModal(isOk) {
         document.getElementById('modalOverlay').classList.add('hidden');
         document.getElementById('customModal').classList.add('hidden');
-        
-        // Возвращаем скролл фона
         document.body.classList.remove('no-scroll'); 
-        
         if (modalCallback) { modalCallback(isOk); modalCallback = null; }
     }
 
@@ -355,7 +378,8 @@
     }
 
     function copyLink(id) {
-        const appUrl = `https://vk.com/app${params.get('vk_app_id')}_-${gid}?form=${id}`;
+        // ИСПРАВЛЕНИЕ: Вернули формирование хэш-ссылки для правильного роутинга ВКонтакте
+        const appUrl = `https://vk.com/app${params.get('vk_app_id')}_-${gid}#form=${id}`;
         vkBridge.send("VKWebAppCopyText", {"text": appUrl})
             .then(() => showNotify("Ссылка скопирована!"))
             .catch(() => { showNotify("Не удалось скопировать", true); });
@@ -439,8 +463,6 @@
         if (existingIndex >= 0) allForms[existingIndex] = newFormData;
         else allForms.push(newFormData);
 
-        // ИСПРАВЛЕНИЕ: Оптимистичное сохранение (Optimistic UI)
-        // Отправляем запрос в фоне и не заставляем интерфейс ждать 30 секунд
         saveToDB().catch(e => console.error("Ошибка сохранения в БД:", e));
 
         setTimeout(() => {
@@ -489,11 +511,12 @@
         const form = document.getElementById('clientForm'); 
         form.innerHTML = '';
 
+        // ИСПРАВЛЕНИЕ: Вызов полноценной маски
         form.innerHTML += `
             <label>Ваше имя</label>
             <input type="text" name="Q0_Name" id="clientNameInput" required maxlength="100">
             <label>Номер телефона</label>
-            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required maxlength="20" pattern="^[\\+0-9\\s\\-\\(\\)]+$" oninput="this.value = this.value.replace(/[^0-9\\+\\-\\(\\)\\s]/g, '')">
+            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required maxlength="20" oninput="formatPhone(event)">
         `;
 
         data.fields.forEach((f, index) => {
