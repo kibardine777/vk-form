@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>Конструктор заявок 3.24</title>
+    <title>Конструктор заявок 3.26</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --vk-blue: #0077FF; --bg-gray: #EBEDF0; --text-main: #000; --text-soft: #818C99; }
         
@@ -157,17 +156,6 @@
 </div>
 
 <script>
-    const SUPABASE_URL = 'https://dhtcpgyeygiafwngxyoc.supabase.co'; 
-    const SUPABASE_KEY = 'sb_publishable_neIIsf1I3lvQ1vvmll4pEg_IwesIUo9'; 
-    
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false
-        }
-    });
-
     vkBridge.send('VKWebAppInit');
 
     function handleAppNavigation(locationStr) {
@@ -208,7 +196,6 @@
         e.target.value = formatted;
     }
 
-    // ИСПРАВЛЕНИЕ: Железобетонный парсинг параметров, отсекающий любые хэши
     const cleanSearch = window.location.search || '?' + (window.location.href.split('?')[1] || '').split('#')[0];
     const params = new URLSearchParams(cleanSearch);
 
@@ -300,10 +287,11 @@
         }
 
         try {
-            // ИСПРАВЛЕНИЕ: База загружается мгновенно, никого не ждет.
-            const { data, error } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).maybeSingle();
+            // ИСПРАВЛЕНИЕ: Запрос идет на наш защищенный Vercel API
+            const response = await fetch(`/api/load?gid=${gid}`);
+            if (!response.ok) throw new Error('Ошибка сети');
             
-            if (error) throw error;
+            const data = await response.json();
 
             if (data && data.fields) {
                 if (data.fields.length > 0 && data.fields[0].form_id) {
@@ -333,7 +321,7 @@
                 }
             }
         } catch (err) {
-            document.getElementById('loading').innerHTML = `<span style="color:#FF3B30;">Ошибка подключения к базе.</span><br><br><button onclick="location.reload()" class="btn-main" style="padding:10px;">Попробовать снова</button>`;
+            document.getElementById('loading').innerHTML = `<span style="color:#FF3B30;">Ошибка соединения.</span><br><br><button onclick="location.reload()" class="btn-main" style="padding:10px;">Обновить</button>`;
         }
     }
 
@@ -600,7 +588,6 @@
         btn.style.marginTop = '15px'; 
         form.appendChild(btn);
 
-        // ИСПРАВЛЕНИЕ: Запрашиваем имя пользователя незримо в фоне, только когда он видит саму форму
         if (!isPreview && !currentUserProfile) {
             vkBridge.send('VKWebAppGetUserInfo')
                 .then(info => { 
