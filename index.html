@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>Конструктор заявок 3.23</title>
+    <title>Конструктор заявок 3.24</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -201,9 +201,9 @@
         e.target.value = formatted;
     }
 
-    const fullUrl = window.location.href.replace(/&amp;/g, '&');
-    let qString = fullUrl.includes('?') ? fullUrl.split('?')[1] : '';
-    const params = new URLSearchParams(qString);
+    // ИСПРАВЛЕНИЕ: Железобетонный парсинг параметров, отсекающий любые хэши
+    const cleanSearch = window.location.search || '?' + (window.location.href.split('?')[1] || '').split('#')[0];
+    const params = new URLSearchParams(cleanSearch);
 
     let gid = params.get('vk_group_id');
     const role = params.get('vk_viewer_group_role'); 
@@ -292,15 +292,8 @@
             return;
         }
 
-        vkBridge.send('VKWebAppGetUserInfo')
-            .then(info => { 
-                currentUserProfile = info; 
-                const nameInp = document.getElementById('clientNameInput');
-                if (nameInp) nameInp.value = `${info.first_name} ${info.last_name}`; 
-            })
-            .catch(e => console.error("Ошибка VK Bridge:", e));
-
         try {
+            // ИСПРАВЛЕНИЕ: База загружается мгновенно, никого не ждет.
             const { data, error } = await _supabase.from('forms').select('*').eq('vk_group_id', gid).maybeSingle();
             
             if (error) throw error;
@@ -499,7 +492,7 @@
         const payload = { 
             vk_group_id: gid, 
             fields: allForms,
-            launch_params: window.location.search.substring(1) 
+            launch_params: cleanSearch.substring(1) 
         }; 
         
         const response = await fetch('/api/save', {
@@ -600,7 +593,16 @@
         btn.style.marginTop = '15px'; 
         form.appendChild(btn);
 
-        if (currentUserProfile) {
+        // ИСПРАВЛЕНИЕ: Запрашиваем имя пользователя незримо в фоне, только когда он видит саму форму
+        if (!isPreview && !currentUserProfile) {
+            vkBridge.send('VKWebAppGetUserInfo')
+                .then(info => { 
+                    currentUserProfile = info; 
+                    const nameInp = document.getElementById('clientNameInput');
+                    if (nameInp && !nameInp.value) nameInp.value = `${info.first_name} ${info.last_name}`; 
+                })
+                .catch(e => console.log("Пропуск автозаполнения имени на ПК"));
+        } else if (currentUserProfile) {
             document.getElementById('clientNameInput').value = `${currentUserProfile.first_name} ${currentUserProfile.last_name}`;
         }
 
