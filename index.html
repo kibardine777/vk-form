@@ -159,7 +159,15 @@
 <script>
     const SUPABASE_URL = 'https://dhtcpgyeygiafwngxyoc.supabase.co'; 
     const SUPABASE_KEY = 'sb_publishable_neIIsf1I3lvQ1vvmll4pEg_IwesIUo9'; 
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // ИСПРАВЛЕНИЕ: Отключаем попытки Supabase читать localStorage, чтобы десктопные браузеры не блокировали iframe
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+        }
+    });
 
     vkBridge.send('VKWebAppInit');
 
