@@ -452,6 +452,14 @@
         };
     }
 
+    function isValidUrl(str) {
+        try {
+            const url = new URL(str);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch (_) {
+            return false;
+        }
+    }
     async function saveSettings() {
         const formNameInput = document.getElementById('editFormName');
         if (!formNameInput.value.trim()) {
@@ -460,28 +468,39 @@
             return;
         }
 
+        const imageInput = document.getElementById('editImage').value.trim();
+        if (imageInput && !isValidUrl(imageInput)) {
+            showNotify('Ошибка: Файл обложки должен быть ссылкой (https://...)', true);
+            document.getElementById('editImage').focus();
+            return;
+        }
+
+        const privacyInput = document.getElementById('editPrivacy').value.trim();
+        if (privacyInput && !isValidUrl(privacyInput)) {
+            showNotify('Ошибка: Ссылка на политику должна быть корректной', true);
+            document.getElementById('editPrivacy').focus();
+            return;
+        }
+
+        const keyInput = document.getElementById('editKey').value.trim();
+        if (keyInput) {
+            const keys = keyInput.split(',').map(k => k.trim());
+            // Проверяем, что ключ Web3Forms — это правильный UUID
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            for (let k of keys) {
+                if (!uuidRegex.test(k)) {
+                    showNotify('Ошибка: Неверный формат ключа Web3Forms!', true);
+                    document.getElementById('editKey').focus();
+                    return;
+                }
+            }
+        }
+
         const btn = document.getElementById('saveBtn');
         btn.disabled = true;
         btn.innerText = 'Сохранение...';
 
         const newFormData = collectFormData();
-        
-        const existingIndex = allForms.findIndex(f => f.form_id === editingFormId);
-        if (existingIndex >= 0) allForms[existingIndex] = newFormData;
-        else allForms.push(newFormData);
-
-        try {
-            await saveToDB();
-            showNotify('Настройки успешно сохранены!');
-            showDashboard();
-        } catch (e) {
-            showNotify('Ошибка сохранения в БД! Изменения не записались.', true);
-            console.error("Критическая ошибка базы:", e);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = 'Сохранить форму';
-        }
-    }
 
     async function saveToDB() {
         const payload = { 
