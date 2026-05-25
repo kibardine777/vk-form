@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>Конструктор заявок 3.27</title>
+    <title>Конструктор заявок 3.28</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <style>
         :root { --vk-blue: #0077FF; --bg-gray: #EBEDF0; --text-main: #000; --text-soft: #818C99; }
@@ -451,9 +451,18 @@
         };
     }
 
+    // ИСПРАВЛЕНИЕ ВАЛИДАЦИИ: Теперь корректно распознает локальные файлы (enigma.jpg) во фреймах десктопного ВК
     function isValidUrl(str) {
+        if (!str) return false;
+        
+        // Если это просто имя локального файла из репозитория GitHub
+        if (!str.includes('://') && (str.endsWith('.jpg') || str.endsWith('.png') || str.endsWith('.jpeg') || str.endsWith('.webp') || str.endsWith('.gif'))) {
+            return true;
+        }
+        
+        // Если это полноценная ссылка внешнего ресурса
         try {
-            const url = new URL(str, window.location.origin);
+            const url = new URL(str);
             return url.protocol === 'http:' || url.protocol === 'https:';
         } catch (_) {
             return false;
@@ -470,7 +479,7 @@
 
         const imageInput = document.getElementById('editImage').value.trim();
         if (imageInput && !isValidUrl(imageInput)) {
-            showNotify('Ошибка: Файл обложки должен быть ссылкой (https://...)', true);
+            showNotify('Ошибка: Файл обложки должен быть ссылкой (https://...) или локальным файлом (.jpg, .png)', true);
             document.getElementById('editImage').focus();
             return;
         }
