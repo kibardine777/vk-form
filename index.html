@@ -293,9 +293,13 @@
             const data = await response.json();
 
             if (data && data.fields) {
-                if (data.fields.length > 0 && data.fields[0].form_id) {
+                // ИСПРАВЛЕНИЕ: Сначала проверяем, не пустой ли массив (если пользователь удалил все формы)
+                if (data.fields.length === 0) {
+                    allForms = [];
+                } else if (data.fields[0].form_id) {
                     allForms = data.fields; 
                 } else {
+                    // Конвертация только для реальных старых данных
                     allForms = [{ form_id: generateId(), internal_name: 'Основная форма', project_name: data.project_name || '', title: data.title || '', subtitle: data.subtitle || '', image_url: data.image_url || '', web3forms_key: data.web3forms_key || '', privacy_url: data.privacy_url || '', fields: data.fields || [] }];
                 }
             } else {
