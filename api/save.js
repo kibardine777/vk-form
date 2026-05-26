@@ -5,7 +5,7 @@ export default async function handler(req, res) {
 
     const { vk_group_id, fields, launch_params } = req.body;
 
-    // 1. ПРОВЕРКА ЦИФРОВОЙ ПОДПИСИ ВК (Защита от подделки запросов)
+    // 1. ПРОВЕРКА ЦИФРОВОЙ ПОДПИСИ ВК
     const secret = process.env.VK_APP_SECRET; 
     const urlParams = new URLSearchParams(launch_params);
     const sign = urlParams.get('sign');
@@ -32,14 +32,20 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Взлом! Неверная подпись ВК.' });
     }
 
-    // 2. ПРОВЕРКА ПРАВ (Только админ группы может сохранять)
+    // 2. АНТИ-IDOR: ЖЕСТКАЯ ПРОВЕРКА ID ГРУППЫ (Защита от подмены)
+    const signedGroupId = urlParams.get('vk_group_id');
+    if (String(vk_group_id) !== String(signedGroupId)) {
+        return res.status(403).json({ error: 'IDOR Атака! Попытка подмены ID группы.' });
+    }
+
+    // 3. ПРОВЕРКА ПРАВ
     const role = urlParams.get('vk_viewer_group_role');
     const isOwner = urlParams.get('vk_viewer_id') === '52069477';
     if (role !== 'admin' && role !== 'editor' && !isOwner) {
         return res.status(403).json({ error: 'Нет прав администратора сообщества' });
     }
 
-    // 3. ОТПРАВКА В БАЗУ ДАННЫХ (через секретный сервисный ключ)
+    // 4. ОТПРАВКА В БАЗУ ДАННЫХ
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
@@ -51,7 +57,7 @@ export default async function handler(req, res) {
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates'
         },
-        body: JSON.stringify({ vk_group_id, fields })
+        body: JSON.stringify({ vk_group_id: signedGroupId, fields })
     });
 
     if (!response.ok) return res.status(500).json({ error: 'Ошибка сохранения БД' });
