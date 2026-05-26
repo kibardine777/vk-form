@@ -439,10 +439,10 @@
                 <select class="sel-type" onchange="changeFieldType(${i}, this.value)">
                     <option value="text" ${f.type==='text'?'selected':''}>Короткий текст</option>
                     <option value="textarea" ${f.type==='textarea'?'selected':''}>Длинный ответ</option>
-                    <option value="select" ${f.type==='select'?'selected':''}>Один вариант (Точки)</option>
-                    <option value="checkbox" ${f.type==='checkbox'?'selected':''}>Несколько вариантов (Галочки)</option>
+                    <option value="select" ${f.type==='select'?'selected':''}>Один вариант (точки)</option>
+                    <option value="checkbox" ${f.type==='checkbox'?'selected':''}>Несколько (галочки)</option>
                 </select>
-                ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" class="inp-opt" value="${escapeHTML(f.options || '')}" placeholder="Варианты через запятую (Да, Нет)" maxlength="300">` : ''}
+                ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" class="inp-opt" value="${escapeHTML(f.options || '')}" placeholder="Варианты через запятую" maxlength="300">` : ''}
             `;
             list.appendChild(div);
         });
