@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>Конструктор заявок 3.28</title>
+    <title>Конструктор заявок 3.30</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <style>
         :root { --vk-blue: #0077FF; --bg-gray: #EBEDF0; --text-main: #000; --text-soft: #818C99; }
         
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; color: var(--text-main); min-height: 100vh; }
+        /* ИСПРАВЛЕНИЕ 1: box-sizing: border-box убирает ложный скроллбар */
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; color: var(--text-main); min-height: 100vh; box-sizing: border-box; }
         .container { background: #fff; padding: 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: left; height: auto; min-height: fit-content; }
         .no-scroll { overflow: hidden; }
         
@@ -34,7 +35,8 @@
             cursor: pointer;
         }
 
-        button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 16px; }
+        /* ИСПРАВЛЕНИЕ 2: -webkit-tap-highlight-color убирает кривую серую подсветку при клике на мобилках */
+        button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 16px; -webkit-tap-highlight-color: transparent; }
         .btn-main { background: var(--vk-blue); color: #fff; }
         .btn-add { background: #E1E3E6; color: #444; margin-bottom: 10px; font-size: 14px; }
         .btn-del { background: #FF3B30; color: #fff; width: auto; padding: 6px 12px; font-size: 11px; border-radius: 6px; }
@@ -121,7 +123,7 @@
     <textarea id="editSubtitle" maxlength="500"></textarea>
     <label>Файл обложки (URL картинки):</label>
     <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/..." maxlength="300">
-    <label>Ключ Web3Forms (Можно несколько через запятую):</label>
+    <label>Ключ Web3Forms (Можно несколько через запятую) <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
     <label>Ссылка на политику конфиденциальности:</label>
     <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy" maxlength="300">
@@ -133,7 +135,7 @@
     <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
     <button class="btn-preview" onclick="previewForm()">👀 Предпросмотр</button>
     <button class="btn-main" id="saveBtn" onclick="saveSettings()" style="margin-bottom: 10px;">Сохранить форму</button>
-    <button class="btn-add" onclick="showDashboard()">Отмена</button>
+    <button class="btn-add" onclick="cancelEdit()">Отмена</button>
 </div>
 
 <div id="userView" class="container hidden">
@@ -293,13 +295,11 @@
             const data = await response.json();
 
             if (data && data.fields) {
-                // ИСПРАВЛЕНИЕ: Сначала проверяем, не пустой ли массив (если пользователь удалил все формы)
                 if (data.fields.length === 0) {
                     allForms = [];
                 } else if (data.fields[0].form_id) {
                     allForms = data.fields; 
                 } else {
-                    // Конвертация только для реальных старых данных
                     allForms = [{ form_id: generateId(), internal_name: 'Основная форма', project_name: data.project_name || '', title: data.title || '', subtitle: data.subtitle || '', image_url: data.image_url || '', web3forms_key: data.web3forms_key || '', privacy_url: data.privacy_url || '', fields: data.fields || [] }];
                 }
             } else {
@@ -415,6 +415,15 @@
         currentFields = form.fields || [];
         renderFieldsEditor();
     }
+    
+    // ИСПРАВЛЕНИЕ 6: Функция отмены редактирования с предупреждением
+    function cancelEdit() {
+        showModal("Отмена", "Вы уверены, что хотите выйти? Несохраненные изменения будут потеряны.", "confirm", (isOk) => {
+            if (isOk) {
+                showDashboard();
+            }
+        });
+    }
 
     function renderFieldsEditor() {
         const list = document.getElementById('fieldsList'); 
@@ -455,16 +464,11 @@
         };
     }
 
-    // ИСПРАВЛЕНИЕ ВАЛИДАЦИИ: Теперь корректно распознает локальные файлы (enigma.jpg) во фреймах десктопного ВК
     function isValidUrl(str) {
         if (!str) return false;
-        
-        // Если это просто имя локального файла из репозитория GitHub
         if (!str.includes('://') && (str.endsWith('.jpg') || str.endsWith('.png') || str.endsWith('.jpeg') || str.endsWith('.webp') || str.endsWith('.gif'))) {
             return true;
         }
-        
-        // Если это полноценная ссылка внешнего ресурса
         try {
             const url = new URL(str);
             return url.protocol === 'http:' || url.protocol === 'https:';
@@ -496,6 +500,12 @@
         }
 
         const keyInput = document.getElementById('editKey').value.trim();
+        // ИСПРАВЛЕНИЕ 4: Валидация наличия ключа Web3Forms до сохранения
+        if (!keyInput) {
+            showNotify('Ошибка: Укажите ключ Web3Forms для получения заявок!', true);
+            document.getElementById('editKey').focus();
+            return;
+        }
         if (keyInput) {
             const keys = keyInput.split(',').map(k => k.trim());
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -627,7 +637,8 @@
 
         if (data.privacy_url) { 
             const safeUrl = `https://vk.ru/away.php?to=${encodeURIComponent(data.privacy_url)}`;
-            document.getElementById('userPrivacy').innerHTML = `Нажимая кнопку, вы соглашаетесь с <a href="${safeUrl}" target="_blank">политикой конфиденциальности</a>`; 
+            // ИСПРАВЛЕНИЕ 3: Добавлена точка в конце предложения
+            document.getElementById('userPrivacy').innerHTML = `Нажимая кнопку, вы соглашаетесь с <a href="${safeUrl}" target="_blank">политикой конфиденциальности</a>.`; 
         }
 
         const btn = document.createElement('button'); 
@@ -655,6 +666,16 @@
                 return; 
             }
             
+            // ИСПРАВЛЕНИЕ 5: Валидация пробелов в обязательных полях перед отправкой
+            const requiredInputs = form.querySelectorAll('[required]');
+            for (let inp of requiredInputs) {
+                if (inp.type !== 'radio' && inp.type !== 'checkbox' && inp.value.trim() === '') {
+                    showNotify('Пожалуйста, заполните обязательные поля (без пустых пробелов)', true);
+                    inp.focus();
+                    return;
+                }
+            }
+
             btn.disabled = true; btn.innerText = 'Отправка...';
             
             const keys = (data.web3forms_key || '').split(',').map(k => k.trim()).filter(k => k);
