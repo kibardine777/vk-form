@@ -485,10 +485,30 @@
         }
 
         const imageInput = document.getElementById('editImage').value.trim();
-        if (imageInput && !isValidUrl(imageInput)) {
-            showNotify('Ошибка: Файл обложки должен быть ссылкой (https://...) или локальным файлом (.jpg, .png)', true);
-            document.getElementById('editImage').focus();
-            return;
+        if (imageInput) {
+            let isSafeImage = false;
+            // 1. Пропускаем безопасные локальные файлы
+            if (!imageInput.includes('://') && (imageInput.endsWith('.jpg') || imageInput.endsWith('.png') || imageInput.endsWith('.jpeg') || imageInput.endsWith('.webp') || imageInput.endsWith('.gif'))) {
+                isSafeImage = true;
+            } else {
+                // 2. Строгий белый список доменов: пропускаем ТОЛЬКО картинки, загруженные на сервера ВКонтакте
+                try {
+                    const url = new URL(imageInput);
+                    const host = url.hostname.toLowerCase();
+                    if ((url.protocol === 'http:' || url.protocol === 'https:') && 
+                        (host.endsWith('.userapi.com') || host === 'userapi.com' || 
+                         host.endsWith('.vkuser.net') || host === 'vkuser.net' || 
+                         host.endsWith('.vk.com') || host === 'vk.com')) {
+                        isSafeImage = true;
+                    }
+                } catch (_) {}
+            }
+
+            if (!isSafeImage) {
+                showNotify('Безопасность: Обложка должна быть загружена в ВК (ссылка userapi.com) или быть локальным файлом!', true);
+                document.getElementById('editImage').focus();
+                return;
+            }
         }
 
         const privacyInput = document.getElementById('editPrivacy').value.trim();
