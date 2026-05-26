@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <title>Конструктор заявок 3.30</title>
+    <title>Конструктор заявок 3.31</title>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <style>
         :root { --vk-blue: #0077FF; --bg-gray: #EBEDF0; --text-main: #000; --text-soft: #818C99; }
         
-        /* ИСПРАВЛЕНИЕ 1: box-sizing: border-box убирает ложный скроллбар */
         body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg-gray); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; color: var(--text-main); min-height: 100vh; box-sizing: border-box; }
         .container { background: #fff; padding: 24px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; width: 100%; box-sizing: border-box; text-align: left; height: auto; min-height: fit-content; }
         .no-scroll { overflow: hidden; }
@@ -16,9 +15,11 @@
         .hidden { display: none !important; }
         img.banner { width: 100%; height: auto; min-height: 100px; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: #f0f0f0; display: block; }
         
-        h2 { margin: 0 0 8px; font-size: 20px; text-align: left; } 
+        /* ИСПРАВЛЕНИЕ: Добавлен принудительный перенос длинных слов для заголовков и лейблов */
+        h2 { margin: 0 0 8px; font-size: 20px; text-align: left; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; } 
         p.desc { color: var(--text-soft); font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-align: left; word-wrap: break-word; overflow-wrap: break-word; }
-        label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; }
+        label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
+        
         input[type="text"], input[type="tel"], select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid #DCE1E6; box-sizing: border-box; font-size: 15px; background: #F2F3F5; font-family: inherit; }
         
         textarea { resize: none; min-height: 100px; }
@@ -35,7 +36,6 @@
             cursor: pointer;
         }
 
-        /* ИСПРАВЛЕНИЕ 2: -webkit-tap-highlight-color убирает кривую серую подсветку при клике на мобилках */
         button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 16px; -webkit-tap-highlight-color: transparent; }
         .btn-main { background: var(--vk-blue); color: #fff; }
         .btn-add { background: #E1E3E6; color: #444; margin-bottom: 10px; font-size: 14px; }
@@ -416,7 +416,6 @@
         renderFieldsEditor();
     }
     
-    // ИСПРАВЛЕНИЕ 6: Функция отмены редактирования с предупреждением
     function cancelEdit() {
         showModal("Отмена", "Вы уверены, что хотите выйти? Несохраненные изменения будут потеряны.", "confirm", (isOk) => {
             if (isOk) {
@@ -500,7 +499,6 @@
         }
 
         const keyInput = document.getElementById('editKey').value.trim();
-        // ИСПРАВЛЕНИЕ 4: Валидация наличия ключа Web3Forms до сохранения
         if (!keyInput) {
             showNotify('Ошибка: Укажите ключ Web3Forms для получения заявок!', true);
             document.getElementById('editKey').focus();
@@ -637,7 +635,6 @@
 
         if (data.privacy_url) { 
             const safeUrl = `https://vk.ru/away.php?to=${encodeURIComponent(data.privacy_url)}`;
-            // ИСПРАВЛЕНИЕ 3: Добавлена точка в конце предложения
             document.getElementById('userPrivacy').innerHTML = `Нажимая кнопку, вы соглашаетесь с <a href="${safeUrl}" target="_blank">политикой конфиденциальности</a>.`; 
         }
 
@@ -666,7 +663,6 @@
                 return; 
             }
             
-            // ИСПРАВЛЕНИЕ 5: Валидация пробелов в обязательных полях перед отправкой
             const requiredInputs = form.querySelectorAll('[required]');
             for (let inp of requiredInputs) {
                 if (inp.type !== 'radio' && inp.type !== 'checkbox' && inp.value.trim() === '') {
