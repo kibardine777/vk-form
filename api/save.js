@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Взлом! Неверная подпись ВК.' });
     }
 
-    // 2. АНТИ-IDOR: ЖЕСТКАЯ ПРОВЕРКА ID ГРУППЫ (Защита от подмены)
+    // 2. АНТИ-IDOR: ЖЕСТКАЯ ПРОВЕРКА ID ГРУППЫ
     const signedGroupId = urlParams.get('vk_group_id');
     if (String(vk_group_id) !== String(signedGroupId)) {
         return res.status(403).json({ error: 'IDOR Атака! Попытка подмены ID группы.' });
@@ -45,7 +45,20 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Нет прав администратора сообщества' });
     }
 
-    // 4. ОТПРАВКА В БАЗУ ДАННЫХ
+    // 4. ВАЛИДАЦИЯ ДАННЫХ (Бэкенд-защита от прямых API-запросов)
+    if (fields && Array.isArray(fields)) {
+        for (const form of fields) {
+            const name = form.internal_name ? String(form.internal_name).trim() : '';
+            if (!name) {
+                return res.status(400).json({ error: 'Bad Request: Название формы не может быть пустым' });
+            }
+            if (name.length > 200) {
+                return res.status(400).json({ error: 'Bad Request: Название формы превышает лимит в 200 символов' });
+            }
+        }
+    }
+
+    // 5. ОТПРАВКА В БАЗУ ДАННЫХ
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
