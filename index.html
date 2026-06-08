@@ -719,7 +719,7 @@
             
             try {
                 for (let key of keys) {
-                    formData.set("access_key", key);
+                    formDataObj["access_key"] = key;
                     await fetch("https://api.web3forms.com/submit", {
                         method: "POST", 
                         headers: {
