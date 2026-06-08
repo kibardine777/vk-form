@@ -620,14 +620,14 @@
 
         form.innerHTML += `
             <label>Ваше имя</label>
-            <input type="text" name="Q0_Name" id="clientNameInput" required maxlength="100">
+            <input type="text" name="Имя" id="clientNameInput" required maxlength="100">
             <label>Номер телефона</label>
-            <input type="tel" name="Q0_Phone" placeholder="+7 (___) ___-__-__" required maxlength="20" oninput="formatPhone(event)">
+            <input type="tel" name="Телефон" placeholder="+7 (___) ___-__-__" required maxlength="20" oninput="formatPhone(event)">
         `;
 
         data.fields.forEach((f, index) => {
             const qLabel = f.label.trim() || `Вопрос ${index+1}`;
-            const safeName = `Q${index+1}_${translit(qLabel)}`;
+            const safeName = qLabel;
             const lbl = document.createElement('label'); lbl.innerText = qLabel; 
             form.appendChild(lbl);
             
@@ -711,10 +711,6 @@
             const formData = new FormData(form);
             formData.append("from_name", data.project_name || "Новая форма ВК");
             formData.append("subject", `Лид: ${data.title || 'Заявка'}`);
-            
-            let legend = "\n\n--- Расшифровка вопросов ---\nИмя и Телефон указаны в начале письма.\n";
-            data.fields.forEach((f, i) => legend += `Q${i+1}: ${f.label}\n`);
-            formData.append("Questions_Legend", legend);
             
             try {
                 for (let key of keys) {
