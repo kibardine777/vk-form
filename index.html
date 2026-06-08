@@ -708,14 +708,26 @@
                 btn.disabled = false; btn.innerText = 'Отправить заявку'; return;
             }
 
+            const formDataObj = {};
             const formData = new FormData(form);
-            formData.append("from_name", data.project_name || "Новая форма ВК");
-            formData.append("subject", `Лид: ${data.title || 'Заявка'}`);
+            formData.forEach((value, key) => {
+                formDataObj[key] = value;
+            });
+            
+            formDataObj["from_name"] = data.project_name || "Новая форма ВК";
+            formDataObj["subject"] = `Лид: ${data.title || 'Заявка'}`;
             
             try {
                 for (let key of keys) {
                     formData.set("access_key", key);
-                    await fetch("https://api.web3forms.com/submit", { method: "POST", body: formData });
+                    await fetch("https://api.web3forms.com/submit", {
+                        method: "POST", 
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json"
+                        },
+                        body: JSON.stringify(formDataObj) 
+                    });
                 }
                 
                 hideAll();
