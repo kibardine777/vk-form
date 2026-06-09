@@ -723,6 +723,7 @@
             
             formDataObj["from_name"] = data.project_name || "Новая форма ВК";
             formDataObj["subject"] = `Лид: ${data.title || 'Заявка'}`;
+            formDataObj["Форма (суть заявки)"] = data.title || "Заявка";
             
             try {
                 for (let key of keys) {
