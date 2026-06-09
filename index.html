@@ -709,6 +709,7 @@
             }
 
             const formDataObj = {};
+            formDataObj["Форма (суть заявки)"] = data.title || "Заявка";
             const formData = new FormData(form);
             
             // Умный сбор данных с поддержкой нескольких галочек
@@ -721,11 +722,9 @@
                 }
             }
             
-            formDataObj["Форма (суть заявки)"] = data.title || "Заявка";
             formDataObj["from_name"] = data.project_name || "Новая форма ВК";
             formDataObj["subject"] = `Лид: ${data.title || 'Заявка'}`;
-            formDataObj["Форма (суть заявки)"] = data.title || "Заявка";
-            
+                        
             try {
                 for (let key of keys) {
                     formDataObj["access_key"] = key;
