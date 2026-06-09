@@ -710,9 +710,16 @@
 
             const formDataObj = {};
             const formData = new FormData(form);
-            formData.forEach((value, key) => {
-                formDataObj[key] = value;
-            });
+            
+            // Умный сбор данных с поддержкой нескольких галочек
+            for (let [key, value] of formData.entries()) {
+                const allValues = formData.getAll(key);
+                if (allValues.length > 1) {
+                    formDataObj[key] = allValues.join(', '); // Склеиваем ответы через запятую
+                } else {
+                    formDataObj[key] = value;
+                }
+            }
             
             formDataObj["from_name"] = data.project_name || "Новая форма ВК";
             formDataObj["subject"] = `Лид: ${data.title || 'Заявка'}`;
