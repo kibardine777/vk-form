@@ -90,9 +90,9 @@
     <p class="desc" style="text-align:center;">Удобный инструмент для сбора заявок из вашего сообщества ВКонтакте.</p>
     <div class="feature-list">
         <b>Что умеет приложение:</b><br>
-        ✅ Несколько форм под разные акции<br>
+        ✅ Несколько форм под разные задачи и акции<br>
         ✅ Автозаполнение имени пользователя ВК<br>
-        ✅ Моментальные уведомления на почту<br>
+        ✅ Моментальные уведомления в личные сообщения ВК и на почту<br>
         ✅ Красивый интерфейс и настройка
     </div>
     <button class="btn-main" onclick="vkBridge.send('VKWebAppAddToCommunity')">Добавить в сообщество</button>
@@ -131,8 +131,12 @@
     <textarea id="editSubtitle" maxlength="500"></textarea>
     <label>Файл обложки (URL картинки):</label>
     <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/..." maxlength="300">
-    <label>Ключ Web3Forms (Можно несколько через запятую) <span style="color:#FF3B30">*</span>:</label>
+    <label>Ключ Web3Forms (Можно несколько через запятую):</label>
     <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
+    
+    <label>ID администраторов ВКонтакте (через запятую) <span style="color:#FF3B30">*</span>:</label>
+    <input type="text" id="editAdminIds" placeholder="Например: 52069477, 12345678" maxlength="300">
+    
     <label>Ссылка на политику конфиденциальности:</label>
     <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy" maxlength="300">
 
@@ -141,6 +145,9 @@
     <div id="fieldsList"></div>
     <button class="btn-add" onclick="addField()">+ Добавить свой вопрос</button>
     <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
+    
+    <button class="btn-main" id="tokenBtn" type="button" onclick="requestGroupToken()" style="background: #2787F5; margin-bottom: 10px;">💬 Включить уведомления в личку ВК</button>
+    
     <button class="btn-preview" onclick="previewForm()">👀 Предпросмотр</button>
     <button class="btn-main" id="saveBtn" onclick="saveSettings()" style="margin-bottom: 10px;">Сохранить форму</button>
     <button class="btn-add" onclick="cancelEdit()">Отмена</button>
@@ -217,6 +224,7 @@
     let allForms = []; 
     let editingFormId = null; 
     let currentUserProfile = null;
+    let currentGroupToken = '';
 
     let modalCallback = null;
     function showModal(title, text, type, callback) {
@@ -242,6 +250,26 @@
         else toast.classList.remove('toast-error');
         toast.classList.remove('hidden');
         setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    function requestGroupToken() {
+        vkBridge.send("VKWebAppGetCommunityToken", {
+            "app_id": parseInt(params.get('vk_app_id')),
+            "group_id": parseInt(gid),
+            "scope": "messages"
+        })
+        .then(data => {
+            if (data.access_token) {
+                currentGroupToken = data.access_token;
+                document.getElementById('tokenBtn').innerText = '✅ Уведомления ВК включены';
+                document.getElementById('tokenBtn').style.background = '#4BB34B';
+                showNotify("Группа успешно авторизована! Не забудьте сохранить форму.");
+            }
+        })
+        .catch(error => {
+            console.log(error);
+            showNotify("Не удалось получить доступ к сообщениям", true);
+        });
     }
 
     function generateId() { return Math.random().toString(36).substr(2, 9); }
@@ -418,8 +446,22 @@
         document.getElementById('editSubtitle').value = form.subtitle || '';
         document.getElementById('editImage').value = form.image_url || '';
         document.getElementById('editKey').value = form.web3forms_key || '';
+        
+        // Заполняем поле админов: если форма новая, автоматически подставляем ID создателя (viewerId)
+        document.getElementById('editAdminIds').value = form.admin_vk_ids || (isNew ? viewerId : '');
+        
         document.getElementById('editPrivacy').value = form.privacy_url || '';
         
+        // НОВЫЙ БЛОК: проверяем, есть ли уже сохраненный токен
+        currentGroupToken = form.group_token || ''; 
+        if (currentGroupToken) {
+            document.getElementById('tokenBtn').innerText = '✅ Уведомления ВК включены';
+            document.getElementById('tokenBtn').style.background = '#4BB34B';
+        } else {
+            document.getElementById('tokenBtn').innerText = '💬 Включить уведомления в личку ВК';
+            document.getElementById('tokenBtn').style.background = '#2787F5';
+        }
+
         currentFields = form.fields || [];
         renderFieldsEditor();
     }
@@ -467,7 +509,9 @@
             image_url: document.getElementById('editImage').value, 
             web3forms_key: document.getElementById('editKey').value, 
             privacy_url: document.getElementById('editPrivacy').value, 
-            fields: currentFields
+            fields: currentFields,
+            group_token: currentGroupToken,
+            admin_vk_ids: document.getElementById('editAdminIds').value.trim() // <--- ИЗМЕНИЛИ ТУТ
         };
     }
 
@@ -527,11 +571,6 @@
         }
 
         const keyInput = document.getElementById('editKey').value.trim();
-        if (!keyInput) {
-            showNotify('Ошибка: Укажите ключ Web3Forms для получения заявок!', true);
-            document.getElementById('editKey').focus();
-            return;
-        }
         if (keyInput) {
             const keys = keyInput.split(',').map(k => k.trim());
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -540,6 +579,22 @@
                     showNotify('Ошибка: Неверный формат ключа Web3Forms!', true);
                     document.getElementById('editKey').focus();
                     return;
+                }
+
+        // --- НОВАЯ СТРОГАЯ ПРОВЕРКА ID ВКОНТАКТЕ ---
+        const adminIdsInput = document.getElementById('editAdminIds').value.trim();
+        if (!adminIdsInput) {
+            showNotify('Ошибка: Укажите ID администраторов для получения заявок!', true);
+            document.getElementById('editAdminIds').focus();
+            return;
+        }
+        
+        // Регулярное выражение: разрешает ТОЛЬКО цифры, запятые и пробелы
+        const validIdsRegex = /^[0-9,\s]+$/;
+        if (!validIdsRegex.test(adminIdsInput)) {
+            showNotify('Ошибка: В поле ID ВКонтакте можно вводить ТОЛЬКО цифры! Уберите буквы, ссылки и другие символы.', true);
+            document.getElementById('editAdminIds').focus();
+            return;
                 }
             }
         }
@@ -703,20 +758,15 @@
             btn.disabled = true; btn.innerText = 'Отправка...';
             
             const keys = (data.web3forms_key || '').split(',').map(k => k.trim()).filter(k => k);
-            if (keys.length === 0) {
-                showNotify('Ошибка: не указан ключ почты админа!', true);
-                btn.disabled = false; btn.innerText = 'Отправить заявку'; return;
-            }
 
             const formDataObj = {};
             formDataObj["Форма (суть заявки)"] = data.title || "Заявка";
             const formData = new FormData(form);
             
-            // Умный сбор данных с поддержкой нескольких галочек
             for (let [key, value] of formData.entries()) {
                 const allValues = formData.getAll(key);
                 if (allValues.length > 1) {
-                    formDataObj[key] = allValues.join(', '); // Склеиваем ответы через запятую
+                    formDataObj[key] = allValues.join(', ');
                 } else {
                     formDataObj[key] = value;
                 }
@@ -726,18 +776,47 @@
             formDataObj["subject"] = `Лид: ${data.title || 'Заявка'}`;
                         
             try {
-                for (let key of keys) {
-                    formDataObj["access_key"] = key;
-                    await fetch("https://api.web3forms.com/submit", {
-                        method: "POST", 
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Accept": "application/json"
-                        },
-                        body: JSON.stringify(formDataObj) 
-                    });
+                // 1. Отправка на почту (ТОЛЬКО если указан ключ)
+                if (keys.length > 0) {
+                    for (let key of keys) {
+                        formDataObj["access_key"] = key;
+                        await fetch("https://api.web3forms.com/submit", {
+                            method: "POST", 
+                            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                            body: JSON.stringify(formDataObj) 
+                        });
+                    }
                 }
                 
+                // 2. ОТПРАВКА В ЛИЧКУ ВК
+                if (data.group_token && data.admin_vk_ids) {
+                    let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
+                    
+                    // ДОБАВЛЯЕМ ССЫЛКУ НА ОТПРАВИТЕЛЯ (если он авторизован в ВК)
+                    if (currentUserProfile && currentUserProfile.id) {
+                        vkText += `👤 Отправитель: https://vk.com/id${currentUserProfile.id}\n\n`;
+                    }
+                    
+                    for (let [key, value] of Object.entries(formDataObj)) {
+                        if (key !== 'access_key' && key !== 'from_name' && key !== 'subject' && key !== 'Форма (суть заявки)') {
+                            vkText += `🔸 ${key}: ${value}\n`;
+                        }
+                    }
+                    
+                    const adminIds = data.admin_vk_ids.split(',').map(id => id.trim()).filter(id => id);
+                    for (let adminId of adminIds) {
+                        try {
+                            await fetch('/api/vk-message', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ token: data.group_token, admin_id: adminId, text: vkText })
+                            });
+                        } catch (vkErr) {
+                            console.error(`Ошибка отправки админу ${adminId}:`, vkErr);
+                        }
+                    }
+                }
+                                
                 hideAll();
                 document.getElementById('successModal').classList.remove('hidden');
 
