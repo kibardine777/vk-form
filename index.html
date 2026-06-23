@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
     <title>Конструктор заявок 3.31</title>
-    <script src="https://cdn.jsdelivr.net/npm/@vkontakte/vk-bridge@2.14.0/dist/browser.min.js"></script>
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <style>
         :root { --vk-blue: #0077FF; --bg-gray: #EBEDF0; --text-main: #000; --text-soft: #818C99; }
         
@@ -15,7 +15,6 @@
         .hidden { display: none !important; }
         img.banner { width: 100%; height: auto; min-height: 100px; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 16px; background: #f0f0f0; display: block; }
         
-        /* ИСПРАВЛЕНИЕ: Добавлен принудительный перенос длинных слов для заголовков и лейблов */
         h2 { margin: 0 0 8px; font-size: 20px; text-align: left; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; } 
         p.desc { color: var(--text-soft); font-size: 14px; margin-bottom: 20px; line-height: 1.4; text-align: left; word-wrap: break-word; overflow-wrap: break-word; }
         label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #444; text-align: left; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
@@ -131,6 +130,7 @@
     <textarea id="editSubtitle" maxlength="500"></textarea>
     <label>Файл обложки (URL картинки):</label>
     <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/..." maxlength="300">
+    
     <label>Ключ Web3Forms (Можно несколько через запятую):</label>
     <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
     
@@ -447,12 +447,9 @@
         document.getElementById('editImage').value = form.image_url || '';
         document.getElementById('editKey').value = form.web3forms_key || '';
         
-        // Заполняем поле админов: если форма новая, автоматически подставляем ID создателя (viewerId)
         document.getElementById('editAdminIds').value = form.admin_vk_ids || (isNew ? viewerId : '');
-        
         document.getElementById('editPrivacy').value = form.privacy_url || '';
         
-        // НОВЫЙ БЛОК: проверяем, есть ли уже сохраненный токен
         currentGroupToken = form.group_token || ''; 
         if (currentGroupToken) {
             document.getElementById('tokenBtn').innerText = '✅ Уведомления ВК включены';
@@ -511,7 +508,7 @@
             privacy_url: document.getElementById('editPrivacy').value, 
             fields: currentFields,
             group_token: currentGroupToken,
-            admin_vk_ids: document.getElementById('editAdminIds').value.trim() // <--- ИЗМЕНИЛИ ТУТ
+            admin_vk_ids: document.getElementById('editAdminIds').value.trim() 
         };
     }
 
@@ -543,7 +540,7 @@
             if (!imageInput.includes('://') && (imageInput.endsWith('.jpg') || imageInput.endsWith('.png') || imageInput.endsWith('.jpeg') || imageInput.endsWith('.webp') || imageInput.endsWith('.gif'))) {
                 isSafeImage = true;
             } else {
-                // 2. Строгий белый список доменов: пропускаем ТОЛЬКО картинки, загруженные на сервера ВКонтакте
+                // 2. Строгий белый список доменов
                 try {
                     const url = new URL(imageInput);
                     const host = url.hostname.toLowerCase();
@@ -571,6 +568,7 @@
         }
 
         const keyInput = document.getElementById('editKey').value.trim();
+        // ВНИМАНИЕ: Исправлена логика скобок. Теперь проверка ID работает ВСЕГДА!
         if (keyInput) {
             const keys = keyInput.split(',').map(k => k.trim());
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -580,6 +578,8 @@
                     document.getElementById('editKey').focus();
                     return;
                 }
+            }
+        }
 
         // --- НОВАЯ СТРОГАЯ ПРОВЕРКА ID ВКОНТАКТЕ ---
         const adminIdsInput = document.getElementById('editAdminIds').value.trim();
@@ -595,9 +595,8 @@
             showNotify('Ошибка: В поле ID ВКонтакте можно вводить ТОЛЬКО цифры! Уберите буквы, ссылки и другие символы.', true);
             document.getElementById('editAdminIds').focus();
             return;
-                }
-            }
         }
+        // -------------------------------------------
 
         const btn = document.getElementById('saveBtn');
         btn.disabled = true;
@@ -792,7 +791,6 @@
                 if (data.group_token && data.admin_vk_ids) {
                     let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
                     
-                    // ДОБАВЛЯЕМ ССЫЛКУ НА ОТПРАВИТЕЛЯ (если он авторизован в ВК)
                     if (currentUserProfile && currentUserProfile.id) {
                         vkText += `👤 Отправитель: https://vk.com/id${currentUserProfile.id}\n\n`;
                     }
@@ -816,7 +814,7 @@
                         }
                     }
                 }
-                                
+                                                
                 hideAll();
                 document.getElementById('successModal').classList.remove('hidden');
 
