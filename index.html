@@ -178,13 +178,19 @@
     // Универсальная ищейка (читает даже жестко закодированные мобильные ссылки ВК)
     function extractFormId(source) {
         if (!source) return null;
-        // Ищем form=ID или form%3DID, игнорируя остальной мусор в ссылке
-        const match = source.match(/(?:[#?&=]|%23|%26|%3F|%3D|^)form(?:=|%3D)([a-zA-Z0-9_-]+)/i);
-        return match ? match[1] : null;
-    }
+        try {
+            // Способ 1: Ищем напрямую в сырой строке (включая закодированные %3D)
+            let match = source.match(/(?:[#?&=]|%23|%26|%3F|%3D|^)form(?:=|%3D)([a-zA-Z0-9_-]+)/i);
+            if (match) return match[1];
+            
+            // Способ 2: На случай сложной кодировки раскодируем и ищем еще раз
+            const decoded = decodeURIComponent(source);
+            match = decoded.match(/(?:[#?&=]|^)form=([a-zA-Z0-9_-]+)/i);
+            if (match) return match[1];
         } catch (e) {
-            return null;
+            console.log("Ошибка разбора линка:", e);
         }
+        return null;
     }
 
     let savedHashId = null;
@@ -359,7 +365,7 @@
                 allForms = [];
             }
 
-            // Наш новый блок поиска (строго на своем месте)
+            // Ищем ID формы экстрактором
             let requestedFormId = extractFormId(window.location.href);
 
             if (!requestedFormId && savedHashId) {
@@ -558,11 +564,9 @@
         const imageInput = document.getElementById('editImage').value.trim();
         if (imageInput) {
             let isSafeImage = false;
-            // 1. Пропускаем безопасные локальные файлы
             if (!imageInput.includes('://') && (imageInput.endsWith('.jpg') || imageInput.endsWith('.png') || imageInput.endsWith('.jpeg') || imageInput.endsWith('.webp') || imageInput.endsWith('.gif'))) {
                 isSafeImage = true;
             } else {
-                // 2. Строгий белый список доменов
                 try {
                     const url = new URL(imageInput);
                     const host = url.hostname.toLowerCase();
@@ -632,7 +636,7 @@
             showNotify('Настройки успешно сохранены!');
             showDashboard();
         } catch (e) {
-            showNotify('Ошибка сохранения в БД! Изменения не записались.', true);
+            showNotify('Ошибка保存 в БД! Изменения не записались.', true);
             console.error("Критическая ошибка базы:", e);
         } finally {
             btn.disabled = false;
@@ -794,7 +798,6 @@
             formDataObj["subject"] = `Лид: ${data.title || 'Заявка'}`;
                         
             try {
-                // 1. Отправка на почту (ТОЛЬКО если указан ключ)
                 if (keys.length > 0) {
                     for (let key of keys) {
                         formDataObj["access_key"] = key;
@@ -806,7 +809,6 @@
                     }
                 }
                 
-                // 2. ОТПРАВКА В ЛИЧКУ ВК
                 if (data.group_token && data.admin_vk_ids) {
                     let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
                     
