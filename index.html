@@ -173,17 +173,37 @@
 </div>
 
 <script>
+    // Универсальная ищейка: вытащит ID формы из любой кодировки и любой ссылки
+    function extractFormId(source) {
+        if (!source) return null;
+        try {
+            const decoded = decodeURIComponent(source);
+            const match = decoded.match(/form=([a-zA-Z0-9_-]+)/);
+            return match ? match[1] : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    let savedHashId = null;
+
+    // Слушаем команды от ВК (ставим ДО инициализации, чтобы не пропустить сигнал на мобилках)
+    vkBridge.subscribe((e) => {
+        if (e.detail.type === 'VKWebAppChangeFragment') {
+            handleAppNavigation(e.detail.data.location);
+        }
+    });
+
     vkBridge.send('VKWebAppInit');
 
-    let savedHashId = null; // Добавили память для хэша из виджета
-
     function handleAppNavigation(locationStr) {
-        if (!locationStr || !locationStr.includes('form=')) return;
-        const newId = locationStr.split('form=')[1].split('&')[0];
+        const newId = extractFormId(locationStr) || extractFormId(window.location.href);
+        if (!newId) return;
         
-        savedHashId = newId; // ВК прислал команду - мы сразу её запомнили
+        savedHashId = newId; 
         
-        if (allForms && allForms.length > 0) {
+        // Если база уже загружена - сразу переключаем экран
+        if (typeof allForms !== 'undefined' && allForms.length > 0) {
             const found = allForms.find(f => f.form_id === newId);
             if (found) renderClientForm(found, false);
         }
@@ -191,12 +211,6 @@
 
     window.addEventListener('hashchange', () => {
         handleAppNavigation(window.location.hash);
-    });
-
-    vkBridge.subscribe((e) => {
-        if (e.detail.type === 'VKWebAppChangeFragment') {
-            handleAppNavigation(e.detail.data.location);
-        }
     });
 
     function escapeHTML(str) {
@@ -347,19 +361,10 @@
                 allForms = [];
             }
 
-            // Пробуем получить ID формы всеми возможными способами
-            let requestedFormId = params.get('form');
+            // Ищем ID формы нашим новым мощным экстрактором во всей ссылке
+            let requestedFormId = extractFormId(window.location.href);
 
-            const vkHash = params.get('vk_hash');
-            if (!requestedFormId && vkHash && vkHash.includes('form=')) {
-                requestedFormId = vkHash.split('form=')[1].split('&')[0];
-            }
-
-            if (!requestedFormId && window.location.hash.includes('form=')) {
-                requestedFormId = window.location.hash.split('form=')[1].split('&')[0];
-            }
-
-            // ВАЖНО: Достаем хэш из нашей памяти, если ВК прислал его раньше, чем загрузилась база
+            // Если в ссылке пусто, берем из памяти (если мобильный ВК прислал сигнал раньше)
             if (!requestedFormId && savedHashId) {
                 requestedFormId = savedHashId;
             }
