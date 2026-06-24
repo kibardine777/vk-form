@@ -128,8 +128,12 @@
     <input type="text" id="editTitle" maxlength="200">
     <label>Подзаголовок:</label>
     <textarea id="editSubtitle" maxlength="500"></textarea>
-    <label>Файл обложки (URL картинки):</label>
-    <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/..." maxlength="300">
+    <label>Обложка формы (загрузите файл или вставьте ссылку):</label>
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <input type="text" id="editImage" placeholder="https://..." maxlength="300" style="margin-bottom: 0; flex: 1;">
+        <input type="file" id="fileUpload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+        <button type="button" class="btn-add" id="uploadBtn" style="margin: 0; width: auto; padding: 0 15px;" onclick="document.getElementById('fileUpload').click()">📁 Загрузить</button>
+    </div>
     
     <label>Ключ Web3Forms (Можно несколько через запятую):</label>
     <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
@@ -338,6 +342,75 @@
         renderFieldsEditor(); 
     }
 
+    async function handleImageUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const btn = document.getElementById('uploadBtn');
+        const originalText = btn.innerText;
+        btn.innerText = '⏳ Загрузка...';
+        btn.disabled = true;
+
+        try {
+            // Читаем файл
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = async function() {
+                    // Сжимаем картинку (максимальная ширина 800px)
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_WIDTH = 800;
+
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Переводим в легкий формат JPEG
+                    const base64Data = canvas.toDataURL('image/jpeg', 0.8);
+
+                    // Отправляем нашему курьеру в Vercel
+                    const res = await fetch('/api/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            fileData: base64Data,
+                            fileName: file.name,
+                            mimeType: 'image/jpeg'
+                        })
+                    });
+
+                    if (!res.ok) throw new Error('Ошибка сервера');
+                    
+                    const data = await res.json();
+                    
+                    // Вставляем ссылку в наше текстовое поле
+                    document.getElementById('editImage').value = data.url;
+                    showNotify('Обложка успешно загружена!');
+                    
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    e.target.value = ''; // Сбрасываем память инпута
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        } catch (err) {
+            console.error(err);
+            showNotify('Ошибка при загрузке обложки', true);
+            btn.innerText = originalText;
+            btn.disabled = false;
+            e.target.value = '';
+        }
+    }
+    
     async function start() {
         const isAdmin = (role === 'admin' || role === 'editor' || viewerId === MY_VK_ID);
 
@@ -580,14 +653,15 @@
                         (host.endsWith('.userapi.com') || host === 'userapi.com' || 
                          host.endsWith('.vkuser.net') || host === 'vkuser.net' ||
                          host.endsWith('.vkuserphoto.ru') || host === 'vkuserphoto.ru' ||
-                         host.endsWith('.vk.com') || host === 'vk.com')) {
+                         host.endsWith('.vk.com') || host === 'vk.com' ||
+                         host.endsWith('.supabase.co'))) {
                         isSafeImage = true;
                     }
                 } catch (_) {}
             }
 
             if (!isSafeImage) {
-                showNotify('Безопасность: Обложка должна быть загружена в ВК (ссылка userapi.com) или быть локальным файлом!', true);
+                showNotify('Ошибка: Картинка должна быть загружена кнопкой или ссылкой из ВК!', true);
                 document.getElementById('editImage').focus();
                 return;
             }
