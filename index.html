@@ -763,13 +763,18 @@
         }
 
         const banner = document.getElementById('userBanner');
-        banner.style.display = 'none'; // Сначала всегда прячем
+        
+        // Жестко очищаем память элемента
+        banner.style.display = 'none';
+        banner.removeAttribute('src'); 
 
         if (data.image_url) { 
-            banner.onload = () => { banner.style.display = 'block'; };
-            // Трюк со временем: обманываем ленивый кэш телефона
-            const cacheBuster = data.image_url.includes('?') ? '&t=' : '?t=';
-            banner.src = data.image_url + cacheBuster + new Date().getTime(); 
+            // Даем микро-паузу мобильному браузеру, чтобы он "проглотил" пустоту,
+            // и подставляем новую, абсолютно чистую ссылку без всяких хвостиков
+            setTimeout(() => {
+                banner.src = data.image_url; 
+                banner.style.display = 'block';
+            }, 10);
         }
         
         document.getElementById('userTitle').innerText = data.title || 'Форма';
