@@ -175,9 +175,14 @@
 <script>
     vkBridge.send('VKWebAppInit');
 
+    let savedHashId = null; // Добавили память для хэша из виджета
+
     function handleAppNavigation(locationStr) {
         if (!locationStr || !locationStr.includes('form=')) return;
         const newId = locationStr.split('form=')[1].split('&')[0];
+        
+        savedHashId = newId; // ВК прислал команду - мы сразу её запомнили
+        
         if (allForms && allForms.length > 0) {
             const found = allForms.find(f => f.form_id === newId);
             if (found) renderClientForm(found, false);
@@ -342,17 +347,21 @@
                 allForms = [];
             }
 
+            // Пробуем получить ID формы всеми возможными способами
             let requestedFormId = params.get('form');
 
-            // Проверяем параметр vk_hash (именно сюда ВК прячет ссылку из виджетов)
             const vkHash = params.get('vk_hash');
             if (!requestedFormId && vkHash && vkHash.includes('form=')) {
                 requestedFormId = vkHash.split('form=')[1].split('&')[0];
             }
 
-            // Проверяем обычный хэш в адресной строке (для прямых переходов)
             if (!requestedFormId && window.location.hash.includes('form=')) {
                 requestedFormId = window.location.hash.split('form=')[1].split('&')[0];
+            }
+
+            // ВАЖНО: Достаем хэш из нашей памяти, если ВК прислал его раньше, чем загрузилась база
+            if (!requestedFormId && savedHashId) {
+                requestedFormId = savedHashId;
             }
 
             if (isAdmin && !requestedFormId) {
