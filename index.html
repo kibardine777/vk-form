@@ -173,7 +173,9 @@
 </div>
 
 <script>
-    // Универсальная ищейка: вытащит ID формы из любой кодировки и любой ссылки
+    vkBridge.send('VKWebAppInit');
+
+    // Универсальная ищейка
     function extractFormId(source) {
         if (!source) return null;
         try {
@@ -187,22 +189,12 @@
 
     let savedHashId = null;
 
-    // Слушаем команды от ВК (ставим ДО инициализации, чтобы не пропустить сигнал на мобилках)
-    vkBridge.subscribe((e) => {
-        if (e.detail.type === 'VKWebAppChangeFragment') {
-            handleAppNavigation(e.detail.data.location);
-        }
-    });
-
-    vkBridge.send('VKWebAppInit');
-
     function handleAppNavigation(locationStr) {
         const newId = extractFormId(locationStr) || extractFormId(window.location.href);
         if (!newId) return;
         
         savedHashId = newId; 
         
-        // Если база уже загружена - сразу переключаем экран
         if (typeof allForms !== 'undefined' && allForms.length > 0) {
             const found = allForms.find(f => f.form_id === newId);
             if (found) renderClientForm(found, false);
@@ -211,6 +203,12 @@
 
     window.addEventListener('hashchange', () => {
         handleAppNavigation(window.location.hash);
+    });
+
+    vkBridge.subscribe((e) => {
+        if (e.detail.type === 'VKWebAppChangeFragment') {
+            handleAppNavigation(e.detail.data.location);
+        }
     });
 
     function escapeHTML(str) {
@@ -361,10 +359,9 @@
                 allForms = [];
             }
 
-            // Ищем ID формы нашим новым мощным экстрактором во всей ссылке
+            // Наш новый блок поиска (строго на своем месте)
             let requestedFormId = extractFormId(window.location.href);
 
-            // Если в ссылке пусто, берем из памяти (если мобильный ВК прислал сигнал раньше)
             if (!requestedFormId && savedHashId) {
                 requestedFormId = savedHashId;
             }
@@ -594,7 +591,6 @@
         }
 
         const keyInput = document.getElementById('editKey').value.trim();
-        // ВНИМАНИЕ: Исправлена логика скобок. Теперь проверка ID работает ВСЕГДА!
         if (keyInput) {
             const keys = keyInput.split(',').map(k => k.trim());
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -607,7 +603,6 @@
             }
         }
 
-        // --- НОВАЯ СТРОГАЯ ПРОВЕРКА ID ВКОНТАКТЕ ---
         const adminIdsInput = document.getElementById('editAdminIds').value.trim();
         if (!adminIdsInput) {
             showNotify('Ошибка: Укажите ID администраторов для получения заявок!', true);
@@ -615,14 +610,12 @@
             return;
         }
         
-        // Регулярное выражение: разрешает ТОЛЬКО цифры, запятые и пробелы
         const validIdsRegex = /^[0-9,\s]+$/;
         if (!validIdsRegex.test(adminIdsInput)) {
             showNotify('Ошибка: В поле ID ВКонтакте можно вводить ТОЛЬКО цифры! Уберите буквы, ссылки и другие символы.', true);
             document.getElementById('editAdminIds').focus();
             return;
         }
-        // -------------------------------------------
 
         const btn = document.getElementById('saveBtn');
         btn.disabled = true;
@@ -840,7 +833,7 @@
                         }
                     }
                 }
-                                                
+                                                                
                 hideAll();
                 document.getElementById('successModal').classList.remove('hidden');
 
