@@ -352,7 +352,6 @@
         btn.disabled = true;
 
         try {
-            // Оборачиваем весь процесс в Promise, чтобы ловить любые ошибки
             const url = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -375,15 +374,24 @@
                                 })
                             });
 
-                            if (!res.ok) throw new Error('Ошибка сервера (возможно, Vercel еще не обновился)');
+                            if (!res.ok) {
+                                // Пытаемся взять красивую ошибку от сервера, иначе даем строгую заглушку
+                                let serverError = 'Сбой при обработке файла на сервере. Попробуйте позже.';
+                                try {
+                                    const errData = await res.json();
+                                    if (errData && errData.error) serverError = errData.error;
+                                } catch(_) {}
+                                throw new Error(serverError);
+                            }
+                            
                             const data = await res.json();
                             resolve(data.url);
                         } catch (err) { reject(err); }
                     };
-                    img.onerror = () => reject(new Error('Не удалось прочитать картинку'));
+                    img.onerror = () => reject(new Error('Не удалось распознать изображение.'));
                     img.src = event.target.result;
                 };
-                reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
+                reader.onerror = () => reject(new Error('Не удалось прочитать файл с устройства.'));
                 reader.readAsDataURL(file);
             });
 
@@ -393,7 +401,6 @@
             console.error("Детали ошибки:", err);
             showNotify('Ошибка: ' + err.message, true);
         } finally {
-            // Эта часть выполнится ВСЕГДА, разблокируя кнопку
             btn.innerText = originalText;
             btn.disabled = false;
             e.target.value = '';
