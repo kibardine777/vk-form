@@ -175,13 +175,13 @@
 <script>
     vkBridge.send('VKWebAppInit');
 
-    // Универсальная ищейка
+    // Универсальная ищейка (читает даже жестко закодированные мобильные ссылки ВК)
     function extractFormId(source) {
         if (!source) return null;
-        try {
-            const decoded = decodeURIComponent(source);
-            const match = decoded.match(/(?:[#?&=]|^)form=([a-zA-Z0-9_-]+)/);
-            return match ? match[1] : null;
+        // Ищем form=ID или form%3DID, игнорируя остальной мусор в ссылке
+        const match = source.match(/(?:[#?&=]|%23|%26|%3F|%3D|^)form(?:=|%3D)([a-zA-Z0-9_-]+)/i);
+        return match ? match[1] : null;
+    }
         } catch (e) {
             return null;
         }
