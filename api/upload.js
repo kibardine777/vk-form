@@ -5,26 +5,26 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Получаем картинку и её название от нашего фронтенда
         const { fileData, fileName, mimeType } = req.body; 
 
-        // Берем ключи от базы из скрытых настроек Vercel
         const supabaseUrl = process.env.SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-            return res.status(500).json({ error: 'Не найдены ключи Supabase' });
+            return res.status(500).json({ error: 'Нет ключей базы данных' });
         }
 
-        // Очищаем формат Base64 и превращаем в настоящий файл (буфер)
+        // Очищаем формат Base64
         const base64Cleaned = fileData.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(base64Cleaned, 'base64');
 
-        // Генерируем уникальное имя, чтобы картинки не перезаписывали друг друга
-        const uniqueName = `${Date.now()}-${fileName}`;
+        // РЕШЕНИЕ ПРОБЛЕМЫ: Кодируем пробелы и кириллицу в безопасный URL-формат
+        const safeName = encodeURIComponent(fileName);
+        const uniqueName = `${Date.now()}-${safeName}`;
 
-        // Отправляем файл напрямую в корзину covers в Supabase
+        // Теперь ссылка 100% безопасна
         const uploadUrl = `${supabaseUrl}/storage/v1/object/covers/${uniqueName}`;
+        
         const uploadRes = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
@@ -36,18 +36,18 @@ export default async function handler(req, res) {
         });
 
         if (!uploadRes.ok) {
-            const err = await uploadRes.text();
-            throw new Error(err);
+            // Если Supabase отклонил файл, читаем его реальную причину и отдаем на экран
+            const errText = await uploadRes.text();
+            return res.status(uploadRes.status).json({ error: `Отказ базы: ${errText}` });
         }
 
-        // Формируем вечную публичную ссылку на загруженную картинку
+        // Формируем вечную ссылку
         const publicUrl = `${supabaseUrl}/storage/v1/object/public/covers/${uniqueName}`;
-
-        // Возвращаем ссылку нашему приложению
         return res.status(200).json({ url: publicUrl });
 
     } catch (error) {
-        console.error('Ошибка загрузки файла:', error);
-        return res.status(500).json({ error: 'Не удалось загрузить файл' });
+        // Если сломался сам код, выводим техническую деталь на экран
+        console.error('Сбой сервера:', error);
+        return res.status(500).json({ error: `Технический сбой: ${error.message}` });
     }
 }
