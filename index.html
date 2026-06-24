@@ -762,11 +762,14 @@
             document.getElementById('previewNotice').classList.add('hidden');
         }
 
+        const banner = document.getElementById('userBanner');
+        banner.style.display = 'none'; // Сначала всегда прячем
+
         if (data.image_url) { 
-            document.getElementById('userBanner').src = data.image_url; 
-            document.getElementById('userBanner').style.display = 'block';
-        } else { 
-            document.getElementById('userBanner').style.display = 'none'; 
+            banner.onload = () => { banner.style.display = 'block'; };
+            // Трюк со временем: обманываем ленивый кэш телефона
+            const cacheBuster = data.image_url.includes('?') ? '&t=' : '?t=';
+            banner.src = data.image_url + cacheBuster + new Date().getTime(); 
         }
         
         document.getElementById('userTitle').innerText = data.title || 'Форма';
