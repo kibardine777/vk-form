@@ -429,6 +429,12 @@
     }
 
     function createNewForm() {
+        // Проверяем лимит перед созданием
+        if (allForms.length >= 10) {
+            showNotify('Достигнут лимит: максимальное число форм — 10.', true);
+            return; // Останавливаем выполнение, редактор не откроется
+        }
+        
         editingFormId = generateId();
         openEditor(editingFormId, true);
     }
