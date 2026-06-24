@@ -342,7 +342,18 @@
                 allForms = [];
             }
 
-            let requestedFormId = params.get('form') || (window.location.hash.includes('form=') ? window.location.hash.split('form=')[1] : null);
+            let requestedFormId = params.get('form');
+
+            // Проверяем параметр vk_hash (именно сюда ВК прячет ссылку из виджетов)
+            const vkHash = params.get('vk_hash');
+            if (!requestedFormId && vkHash && vkHash.includes('form=')) {
+                requestedFormId = vkHash.split('form=')[1].split('&')[0];
+            }
+
+            // Проверяем обычный хэш в адресной строке (для прямых переходов)
+            if (!requestedFormId && window.location.hash.includes('form=')) {
+                requestedFormId = window.location.hash.split('form=')[1].split('&')[0];
+            }
 
             if (isAdmin && !requestedFormId) {
                 showDashboard();
