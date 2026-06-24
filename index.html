@@ -352,59 +352,48 @@
         btn.disabled = true;
 
         try {
-            // Читаем файл
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = async function() {
-                    // Сжимаем картинку (максимальная ширина 800px)
-                    const canvas = document.createElement('canvas');
-                    let width = img.width;
-                    let height = img.height;
-                    const MAX_WIDTH = 800;
+            // Оборачиваем весь процесс в Promise, чтобы ловить любые ошибки
+            const url = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = async () => {
+                        try {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width, height = img.height;
+                            if (width > 800) { height = Math.round(height * 800 / width); width = 800; }
+                            canvas.width = width; canvas.height = height;
+                            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 
-                    if (width > MAX_WIDTH) {
-                        height = Math.round((height * MAX_WIDTH) / width);
-                        width = MAX_WIDTH;
-                    }
+                            const res = await fetch('/api/upload', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    fileData: canvas.toDataURL('image/jpeg', 0.8), 
+                                    fileName: file.name, 
+                                    mimeType: 'image/jpeg' 
+                                })
+                            });
 
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    // Переводим в легкий формат JPEG
-                    const base64Data = canvas.toDataURL('image/jpeg', 0.8);
-
-                    // Отправляем нашему курьеру в Vercel
-                    const res = await fetch('/api/upload', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            fileData: base64Data,
-                            fileName: file.name,
-                            mimeType: 'image/jpeg'
-                        })
-                    });
-
-                    if (!res.ok) throw new Error('Ошибка сервера');
-                    
-                    const data = await res.json();
-                    
-                    // Вставляем ссылку в наше текстовое поле
-                    document.getElementById('editImage').value = data.url;
-                    showNotify('Обложка успешно загружена!');
-                    
-                    btn.innerText = originalText;
-                    btn.disabled = false;
-                    e.target.value = ''; // Сбрасываем память инпута
+                            if (!res.ok) throw new Error('Ошибка сервера (возможно, Vercel еще не обновился)');
+                            const data = await res.json();
+                            resolve(data.url);
+                        } catch (err) { reject(err); }
+                    };
+                    img.onerror = () => reject(new Error('Не удалось прочитать картинку'));
+                    img.src = event.target.result;
                 };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
+                reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
+                reader.readAsDataURL(file);
+            });
+
+            document.getElementById('editImage').value = url;
+            showNotify('Обложка успешно загружена!');
         } catch (err) {
-            console.error(err);
-            showNotify('Ошибка при загрузке обложки', true);
+            console.error("Детали ошибки:", err);
+            showNotify('Ошибка: ' + err.message, true);
+        } finally {
+            // Эта часть выполнится ВСЕГДА, разблокируя кнопку
             btn.innerText = originalText;
             btn.disabled = false;
             e.target.value = '';
