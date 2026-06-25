@@ -141,7 +141,7 @@
     <label>ID администраторов ВКонтакте (через запятую) <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editAdminIds" placeholder="Например: 52069477, 12345678" maxlength="300">
     
-    <label>Ссылка на политику конфиденциальности:</label>
+    <label>Ссылка на политику конфиденциальности <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy" maxlength="300">
 
     <h3 style="font-size: 16px; text-align: left; margin-top: 20px;">Настройка полей:</h3>
@@ -668,8 +668,13 @@
         }
 
         const privacyInput = document.getElementById('editPrivacy').value.trim();
-        if (privacyInput && !isValidUrl(privacyInput)) {
-            showNotify('Ошибка: Ссылка на политику должна быть корректной', true);
+        if (!privacyInput) {
+            showNotify('Ошибка: Обязательно укажите ссылку на политику конфиденциальности!', true);
+            document.getElementById('editPrivacy').focus();
+            return;
+        }
+        if (!isValidUrl(privacyInput)) {
+            showNotify('Ошибка: Ссылка на политику должна быть корректной (начинаться с http:// или https://)', true);
             document.getElementById('editPrivacy').focus();
             return;
         }
@@ -826,9 +831,18 @@
             }
         });
 
+        document.getElementById('userPrivacy').innerHTML = ''; // Очищаем старый простой текст
         if (data.privacy_url) { 
             const safeUrl = `https://vk.ru/away.php?to=${encodeURIComponent(data.privacy_url)}`;
-            document.getElementById('userPrivacy').innerHTML = `Нажимая кнопку, вы соглашаетесь с <a href="${safeUrl}" target="_blank">политикой конфиденциальности</a>.`; 
+            const privacyDiv = document.createElement('div');
+            privacyDiv.style.marginTop = '15px';
+            privacyDiv.innerHTML = `
+                <label style="display: flex; align-items: flex-start; font-weight: normal; font-size: 12px; color: var(--text-soft); cursor: pointer;">
+                    <input type="checkbox" required style="width: auto; margin: 2px 8px 0 0; cursor: pointer;">
+                    <span>Я согласен с <a href="${safeUrl}" target="_blank" style="color: var(--vk-blue); text-decoration: none;">политикой конфиденциальности</a> <span style="color: red;">*</span></span>
+                </label>
+            `;
+            form.appendChild(privacyDiv);
         }
 
         const btn = document.createElement('button'); 
@@ -858,6 +872,12 @@
             
             const requiredInputs = form.querySelectorAll('[required]');
             for (let inp of requiredInputs) {
+                // Если это галочка, и она не нажата — выдаем ошибку
+                if (inp.type === 'checkbox' && !inp.checked) {
+                    showNotify('Пожалуйста, подтвердите согласие с политикой конфиденциальности', true);
+                    return;
+                }
+                // Проверка для текстовых полей
                 if (inp.type !== 'radio' && inp.type !== 'checkbox' && inp.value.trim() === '') {
                     showNotify('Пожалуйста, заполните обязательные поля (без пустых пробелов)', true);
                     inp.focus();
