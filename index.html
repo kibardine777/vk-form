@@ -148,8 +148,19 @@
     <p class="desc" style="margin-bottom: 10px;">Поля "Имя" и "Телефон" встроены по умолчанию.</p>
     <div id="fieldsList"></div>
     <button class="btn-add" onclick="addField()">+ Добавить свой вопрос</button>
-    <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
     
+    <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
+    <h3 style="font-size: 16px; text-align: left; margin-bottom: 10px;">🎉 Экран благодарности (после отправки):</h3>
+    <label>Заголовок:</label>
+    <input type="text" id="editSuccessTitle" placeholder="Например: Спасибо!" maxlength="100">
+    <label>Текст сообщения:</label>
+    <textarea id="editSuccessDesc" placeholder="Например: Ваша заявка отправлена..." maxlength="300" style="min-height: 60px;"></textarea>
+    <label>Текст на кнопке:</label>
+    <input type="text" id="editSuccessBtnText" placeholder="Например: Понятно, вернуться в группу" maxlength="100">
+    <label>Ссылка для кнопки (если пусто — кнопка закроет форму):</label>
+    <input type="text" id="editSuccessBtnLink" placeholder="https://vk.com/..." maxlength="300">
+    <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
+
     <button class="btn-main" id="tokenBtn" type="button" onclick="requestGroupToken()" style="background: #2787F5; margin-bottom: 10px;">💬 Включить уведомления в личку ВК</button>
     
     <button class="btn-preview" onclick="previewForm()">👀 Предпросмотр</button>
@@ -553,6 +564,10 @@
         document.getElementById('editSubtitle').value = form.subtitle || '';
         document.getElementById('editImage').value = form.image_url || '';
         document.getElementById('editKey').value = form.web3forms_key || '';
+        document.getElementById('editSuccessTitle').value = form.success_title || '';
+        document.getElementById('editSuccessDesc').value = form.success_desc || '';
+        document.getElementById('editSuccessBtnText').value = form.success_btn_text || '';
+        document.getElementById('editSuccessBtnLink').value = form.success_btn_link || '';
         
         document.getElementById('editAdminIds').value = form.admin_vk_ids || (isNew ? viewerId : '');
         document.getElementById('editPrivacy').value = form.privacy_url || '';
@@ -615,7 +630,11 @@
             privacy_url: document.getElementById('editPrivacy').value, 
             fields: currentFields,
             group_token: currentGroupToken,
-            admin_vk_ids: document.getElementById('editAdminIds').value.trim() 
+            admin_vk_ids: document.getElementById('editAdminIds').value.trim(), // <-- добавили запятую здесь
+            success_title: document.getElementById('editSuccessTitle').value.trim(),
+            success_desc: document.getElementById('editSuccessDesc').value.trim(),
+            success_btn_text: document.getElementById('editSuccessBtnText').value.trim(),
+            success_btn_link: document.getElementById('editSuccessBtnLink').value.trim()
         };
     }
 
@@ -865,24 +884,54 @@
 
         form.onsubmit = async (e) => {
             e.preventDefault(); 
-            if (isPreview) { 
-                showNotify('В режиме предпросмотра данные не отправляются!'); 
-                return; 
-            }
             
             const requiredInputs = form.querySelectorAll('[required]');
             for (let inp of requiredInputs) {
-                // Если это галочка, и она не нажата — выдаем ошибку
                 if (inp.type === 'checkbox' && !inp.checked) {
                     showNotify('Пожалуйста, подтвердите согласие с политикой конфиденциальности', true);
                     return;
                 }
-                // Проверка для текстовых полей
                 if (inp.type !== 'radio' && inp.type !== 'checkbox' && inp.value.trim() === '') {
                     showNotify('Пожалуйста, заполните обязательные поля (без пустых пробелов)', true);
                     inp.focus();
                     return;
                 }
+            }
+
+            // Функция для настройки и показа экрана успеха
+            const showSuccessScreen = () => {
+                hideAll();
+                document.getElementById('successModal').classList.remove('hidden');
+
+                document.getElementById('successTitle').innerText = data.success_title || 'Спасибо!';
+                document.getElementById('successDesc').innerText = data.success_desc || 'Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.';
+                
+                const sBtn = document.getElementById('successBtn');
+                sBtn.innerText = data.success_btn_text || 'Понятно, вернуться в группу';
+                
+                const previewBtn = document.getElementById('previewCloseSuccessBtn');
+
+                if (isPreview) {
+                    sBtn.onclick = () => showNotify('В рабочей версии эта кнопка перейдет по ссылке или закроет форму');
+                    previewBtn.classList.remove('hidden');
+                } else {
+                    previewBtn.classList.add('hidden');
+                    sBtn.onclick = () => {
+                        if (data.success_btn_link) {
+                            let link = data.success_btn_link;
+                            if (!link.startsWith('http')) link = 'https://' + link;
+                            window.open(link, '_blank');
+                        } else {
+                            vkBridge.send('VKWebAppClose', {'status': 'success'});
+                        }
+                    };
+                }
+            };
+
+            // Если это предпросмотр — просто показываем экран успеха и прерываем отправку
+            if (isPreview) { 
+                showSuccessScreen();
+                return; 
             }
 
             btn.disabled = true; btn.innerText = 'Отправка...';
@@ -944,8 +993,7 @@
                     }
                 }
                                                                 
-                hideAll();
-                document.getElementById('successModal').classList.remove('hidden');
+                showSuccessScreen();
 
             } catch (err) {
                 showNotify('Произошла ошибка сети. Попробуйте еще раз.', true); 
