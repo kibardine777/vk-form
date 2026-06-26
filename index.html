@@ -174,8 +174,9 @@
     <p id="userSubtitle" class="desc"></p>
     <form id="clientForm"></form>
     <div id="userPrivacy" class="privacy"></div>
-    <div id="previewNotice" class="hidden" style="margin-top:20px; padding:10px; background:#FFEAA7; border-radius:8px; font-size:12px; color:#D35400;">
+    <div id="previewNotice" class="hidden" style="margin-top:20px; padding:10px; background:#FFEAA7; border-radius:8px; font-size:12px; color:#D35400; text-align: center;">
         <b>Режим предпросмотра.</b> Заявки не отправляются.<br><br>
+        <button id="directSuccessPreviewBtn" class="btn-preview" style="background: #FF9F0A; margin-bottom: 10px;">Сразу показать экран благодарности</button><br>
         <button class="btn-add" onclick="closePreview()" style="margin:0;">Вернуться в редактор</button>
     </div>
 </div>
@@ -883,6 +884,47 @@
             document.getElementById('clientNameInput').value = `${currentUserProfile.first_name} ${currentUserProfile.last_name}`;
         }
 
+        // ВЫНОСИМ ФУНКЦИЮ ВЫШЕ, ЧТОБЫ ЕЁ МОГЛА ВЫЗЫВАТЬ НОВАЯ КНОПКА
+        const showSuccessScreen = () => {
+            hideAll();
+            document.getElementById('successModal').classList.remove('hidden');
+
+            document.getElementById('successTitle').innerText = data.success_title || 'Спасибо!';
+            document.getElementById('successDesc').innerText = data.success_desc || 'Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.';
+            
+            const sBtn = document.getElementById('successBtn');
+            sBtn.innerText = data.success_btn_text || 'Понятно, вернуться в группу';
+            
+            const previewBtn = document.getElementById('previewCloseSuccessBtn');
+
+            if (isPreview) {
+                sBtn.onclick = () => showNotify('В рабочей версии эта кнопка перейдет по ссылке или закроет форму');
+                previewBtn.classList.remove('hidden');
+            } else {
+                previewBtn.classList.add('hidden');
+                sBtn.onclick = () => {
+                    if (data.success_btn_link) {
+                        let link = data.success_btn_link;
+                        if (!link.startsWith('http')) link = 'https://' + link;
+                        window.open(link, '_blank');
+                    } else {
+                        vkBridge.send('VKWebAppClose', {'status': 'success'});
+                    }
+                };
+            }
+        };
+
+        // ПРИВЯЗЫВАЕМ НОВУЮ КНОПКУ ПРЕДПРОСМОТРА
+        if (isPreview) {
+            const directBtn = document.getElementById('directSuccessPreviewBtn');
+            if (directBtn) {
+                directBtn.onclick = (e) => {
+                    e.preventDefault();
+                    showSuccessScreen();
+                };
+            }
+        }
+
         form.onsubmit = async (e) => {
             e.preventDefault(); 
             
@@ -899,37 +941,6 @@
                 }
             }
 
-            // Функция для настройки и показа экрана успеха
-            const showSuccessScreen = () => {
-                hideAll();
-                document.getElementById('successModal').classList.remove('hidden');
-
-                document.getElementById('successTitle').innerText = data.success_title || 'Спасибо!';
-                document.getElementById('successDesc').innerText = data.success_desc || 'Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.';
-                
-                const sBtn = document.getElementById('successBtn');
-                sBtn.innerText = data.success_btn_text || 'Понятно, вернуться в группу';
-                
-                const previewBtn = document.getElementById('previewCloseSuccessBtn');
-
-                if (isPreview) {
-                    sBtn.onclick = () => showNotify('В рабочей версии эта кнопка перейдет по ссылке или закроет форму');
-                    previewBtn.classList.remove('hidden');
-                } else {
-                    previewBtn.classList.add('hidden');
-                    sBtn.onclick = () => {
-                        if (data.success_btn_link) {
-                            let link = data.success_btn_link;
-                            if (!link.startsWith('http')) link = 'https://' + link;
-                            window.open(link, '_blank');
-                        } else {
-                            vkBridge.send('VKWebAppClose', {'status': 'success'});
-                        }
-                    };
-                }
-            };
-
-            // Если это предпросмотр — просто показываем экран успеха и прерываем отправку
             if (isPreview) { 
                 showSuccessScreen();
                 return; 
