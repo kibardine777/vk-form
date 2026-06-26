@@ -742,7 +742,7 @@
             showNotify('Настройки успешно сохранены!');
             showDashboard();
         } catch (e) {
-            showNotify('Ошибка保存 в БД! Изменения не записались.', true);
+            showNotify('Ошибка в БД! Изменения не записались.', true);
             console.error("Критическая ошибка базы:", e);
         } finally {
             btn.disabled = false;
