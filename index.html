@@ -182,9 +182,10 @@
 
 <div id="successModal" class="container hidden" style="margin: auto; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
-    <h2 style="text-align: center !important; color: var(--vk-blue); font-size: 24px; margin-bottom: 15px; width: 100%;">Спасибо!</h2>
-    <p class="desc" style="text-align: center !important; font-size: 16px;">Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
-    <button class="btn-main" onclick="vkBridge.send('VKWebAppClose', {'status': 'success'})" style="margin-top: 20px;">Понятно, вернуться в группу</button>
+    <h2 id="successTitle" style="text-align: center !important; color: var(--vk-blue); font-size: 24px; margin-bottom: 15px; width: 100%;">Спасибо!</h2>
+    <p id="successDesc" class="desc" style="text-align: center !important; font-size: 16px;">Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.</p>
+    <button id="successBtn" class="btn-main" style="margin-top: 20px;">Понятно, вернуться в группу</button>
+    <button id="previewCloseSuccessBtn" class="btn-add hidden" onclick="closePreview()" style="margin-top: 10px;">Вернуться в редактор</button>
 </div>
 
 <script>
