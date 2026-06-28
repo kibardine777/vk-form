@@ -17,6 +17,12 @@ app.use(express.static(path.join(__dirname, '/')));
 // Подключаем базу данных
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+    console.error("Не найдены переменные окружения SUPABASE");
+    process.exit(1);
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 1. Загрузка настроек формы
