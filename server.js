@@ -174,5 +174,10 @@ app.get('*', (req, res) => {
 
 // Запуск
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Сервер запущен на порту ${port}`);
+    console.log('==============================');
+    console.log(`Express started`);
+    console.log(`PORT: ${port}`);
+    console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`PWD: ${process.cwd()}`);
+    console.log('==============================');
 });
