@@ -147,23 +147,60 @@ app.post('/api/upload', async (req, res) => {
 // 4. Отправка сообщений в личку ВК
 app.post('/api/vk-message', async (req, res) => {
     const { token, admin_id, text } = req.body;
+
+    if (!token || !admin_id || !text) {
+        return res.status(400).json({
+            success: false,
+            error: 'Не хватает обязательных параметров'
+        });
+    }
+
     try {
         const response = await fetch('https://api.vk.com/method/messages.send', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
             body: new URLSearchParams({
                 access_token: token,
                 user_id: admin_id,
                 message: text,
-                random_id: Math.floor(Math.random() * 1000000),
+                random_id: Date.now(),
                 v: '5.131'
             })
         });
+
         const result = await response.json();
-        return res.status(200).json(result);
+
+        // VK вернул ошибку
+        if (result.error) {
+            console.error('========== VK API ERROR ==========');
+            console.error('Admin ID:', admin_id);
+            console.error('Error Code:', result.error.error_code);
+            console.error('Error Message:', result.error.error_msg);
+            console.error(result.error);
+            console.error('==================================');
+
+            return res.status(502).json({
+                success: false,
+                vk_error: result.error
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message_id: result.response
+        });
+
     } catch (err) {
-        console.error('Ошибка ВК:', err);
-        res.status(500).json({ error: 'VK API Error' });
+        console.error('========== VK REQUEST FAILED ==========');
+        console.error(err);
+        console.error('=======================================');
+
+        return res.status(500).json({
+            success: false,
+            error: 'Ошибка соединения с VK API'
+        });
     }
 });
 
