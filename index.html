@@ -991,21 +991,66 @@
                         }
                     }
                     
-                    const adminIds = data.admin_vk_ids.split(',').map(id => id.trim()).filter(id => id);
-                    for (let adminId of adminIds) {
-                        try {
-                            await fetch('/api/vk-message', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ token: data.group_token, admin_id: adminId, text: vkText })
-                            });
-                        } catch (vkErr) {
-                            console.error(`Ошибка отправки админу ${adminId}:`, vkErr);
-                        }
-                    }
-                }
-                                                                
-                showSuccessScreen();
+                    const adminIds = data.admin_vk_ids
+    .split(',')
+    .map(id => id.trim())
+    .filter(id => id);
+
+let vkErrors = [];
+
+for (const adminId of adminIds) {
+    try {
+
+        const response = await fetch('/api/vk-message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                token: data.group_token,
+                admin_id: adminId,
+                text: vkText
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            console.error(`VK API ошибка для администратора ${adminId}:`, result);
+
+            vkErrors.push({
+                adminId,
+                error: result
+            });
+        }
+
+    } catch (vkErr) {
+
+        console.error(`Ошибка сети при отправке админу ${adminId}:`, vkErr);
+
+        vkErrors.push({
+            adminId,
+            error: vkErr
+        });
+    }
+}
+
+// Если не удалось отправить никому
+if (adminIds.length > 0 && vkErrors.length === adminIds.length) {
+
+    showNotify(
+        'Не удалось отправить уведомление администраторам. Попробуйте ещё раз.',
+        true
+    );
+
+    btn.disabled = false;
+    btn.innerText = 'Отправить заявку';
+
+    return;
+}
+
+// Всё успешно
+showSuccessScreen();
 
             } catch (err) {
                 showNotify('Произошла ошибка сети. Попробуйте еще раз.', true); 
