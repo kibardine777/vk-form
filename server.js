@@ -16,7 +16,15 @@ app.use(express.static(path.join(__dirname, '/')));
 // 1. Подключение к базе данных PostgreSQL
 // ==========================================
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false // Включаем обязательное шифрование для публичного IP
+    }
+});
+
+// Защита от падения сервера при кратковременных обрывах связи
+pool.on('error', (err) => {
+    console.error('Ошибка фонового соединения с БД:', err);
 });
 
 pool.query(`
