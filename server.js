@@ -1,62 +1,78 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const crypto = require('crypto'); // Добавили модуль для криптографии
-const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
+const { Pool } = require('pg');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Лимит 10mb для загрузки тяжелых картинок
 app.use(express.json({ limit: '10mb' }));
 app.use(cors());
-
-// Отдаем твой интерфейс (index.html)
 app.use(express.static(path.join(__dirname, '/')));
 
-// Подключаем базу данных
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+// ==========================================
+// 1. Подключение к базе данных PostgreSQL
+// ==========================================
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL
+});
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error("Не найдены переменные окружения SUPABASE");
-    process.exit(1);
-}
+pool.query(`
+    CREATE TABLE IF NOT EXISTS forms (
+        vk_group_id VARCHAR(255) PRIMARY KEY,
+        fields JSONB,
+        launch_params TEXT
+    )
+`).then(() => console.log('Таблица forms готова к работе'))
+  .catch(err => console.error('Ошибка создания таблицы:', err));
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// ==========================================
+// 2. Подключение к S3 Хранилищу (Timeweb)
+// ==========================================
+const s3 = new S3Client({
+    region: 'ru-1', 
+    endpoint: 'https://s3.twcstorage.ru',
+    credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY,
+        secretAccessKey: process.env.S3_SECRET_KEY
+    },
+    forcePathStyle: true
+});
+const BUCKET_NAME = 'vk-forms-images';
 
-// 1. Загрузка настроек формы
+// ==========================================
+// РОУТЫ ПРИЛОЖЕНИЯ
+// ==========================================
+
+// Загрузка настроек формы
 app.get('/api/load', async (req, res) => {
     const gid = req.query.gid;
     if (!gid) return res.status(400).json({ error: 'No vk_group_id' });
 
     try {
-        const { data, error } = await supabase
-            .from('forms')
-            .select('*')
-            .eq('vk_group_id', gid)
-            .single();
-
-        if (error && error.code !== 'PGRST116') throw error; 
-        return res.status(200).json(data || { fields: [] });
+        const result = await pool.query('SELECT * FROM forms WHERE vk_group_id = $1', [gid]);
+        if (result.rows.length === 0) {
+            return res.status(200).json({ fields: [] });
+        }
+        return res.status(200).json(result.rows[0]);
     } catch (err) {
         console.error('Ошибка загрузки:', err);
         res.status(500).json({ error: 'DB Error' });
     }
 });
 
-// 2. Сохранение настроек формы (С ПОЛНОЙ ЗАЩИТОЙ ИЗ VERCEL)
+// Сохранение настроек формы
 app.post('/api/save', async (req, res) => {
     const { vk_group_id, fields, launch_params } = req.body;
     if (!vk_group_id || !launch_params) return res.status(400).json({ error: 'No data' });
 
     try {
-        // --- БЛОК БЕЗОПАСНОСТИ НАЧАЛО ---
         const secret = process.env.VK_APP_SECRET; 
         const urlParams = new URLSearchParams(launch_params);
         const sign = urlParams.get('sign');
         
-        // 1. ПРОВЕРКА ЦИФРОВОЙ ПОДПИСИ ВК
         const queryParams = [];
         for (const [key, value] of urlParams.entries()) {
             if (key.startsWith('vk_')) queryParams.push({ key, value });
@@ -79,38 +95,25 @@ app.post('/api/save', async (req, res) => {
             return res.status(403).json({ error: 'Взлом! Неверная подпись ВК.' });
         }
 
-        // 2. АНТИ-IDOR: ЖЕСТКАЯ ПРОВЕРКА ID ГРУППЫ
         const signedGroupId = urlParams.get('vk_group_id');
         if (String(vk_group_id) !== String(signedGroupId)) {
             return res.status(403).json({ error: 'IDOR Атака! Попытка подмены ID группы.' });
         }
 
-        // 3. ПРОВЕРКА ПРАВ
         const role = urlParams.get('vk_viewer_group_role');
         const isOwner = urlParams.get('vk_viewer_id') === '52069477';
         if (role !== 'admin' && role !== 'editor' && !isOwner) {
             return res.status(403).json({ error: 'Нет прав администратора сообщества' });
         }
 
-        // 4. ВАЛИДАЦИЯ ДАННЫХ
-        if (fields && Array.isArray(fields)) {
-            for (const form of fields) {
-                const name = form.internal_name ? String(form.internal_name).trim() : '';
-                if (!name) return res.status(400).json({ error: 'Bad Request: Название формы не может быть пустым' });
-                if (name.length > 200) return res.status(400).json({ error: 'Bad Request: Название превышает лимит' });
-            }
-        }
-        // --- БЛОК БЕЗОПАСНОСТИ КОНЕЦ ---
+        const query = `
+            INSERT INTO forms (vk_group_id, fields, launch_params)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (vk_group_id)
+            DO UPDATE SET fields = EXCLUDED.fields, launch_params = EXCLUDED.launch_params
+        `;
+        await pool.query(query, [signedGroupId, JSON.stringify(fields), launch_params]);
 
-        // 5. ОТПРАВКА В БАЗУ ДАННЫХ
-        const { error } = await supabase
-            .from('forms')
-            .upsert(
-                { vk_group_id: signedGroupId, fields, launch_params },
-                { onConflict: 'vk_group_id' }
-            );
-
-        if (error) throw error;
         return res.status(200).json({ success: true });
     } catch (err) {
         console.error('Ошибка сохранения:', err);
@@ -118,33 +121,36 @@ app.post('/api/save', async (req, res) => {
     }
 });
 
-// 3. Загрузка обложки в хранилище Supabase (С БЕЗОПАСНЫМИ ИМЕНАМИ)
+// Загрузка картинок через кнопку
 app.post('/api/upload', async (req, res) => {
-    const { fileData, mimeType } = req.body;
+    const { fileData } = req.body;
     if (!fileData) return res.status(400).json({ error: 'No file' });
 
     try {
         const base64Data = fileData.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(base64Data, 'base64');
         
-        // ЖЕЛЕЗОБЕТОННОЕ РЕШЕНИЕ ИЗ VERCEL (Системное имя файла)
         const uniqueName = `cover-${Date.now()}-${Math.floor(Math.random() * 1000)}.jpg`;
 
-        const { error } = await supabase.storage
-            .from('covers')
-            .upload(uniqueName, buffer, { contentType: 'image/jpeg' });
+        const command = new PutObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: uniqueName,
+            Body: buffer,
+            ContentType: 'image/jpeg'
+        });
 
-        if (error) throw error;
+        await s3.send(command);
 
-        const { data: publicData } = supabase.storage.from('covers').getPublicUrl(uniqueName);
-        return res.status(200).json({ url: publicData.publicUrl });
+        // Формируем публичную ссылку для сохранения
+        const publicUrl = `https://s3.twcstorage.ru/${BUCKET_NAME}/${uniqueName}`;
+        return res.status(200).json({ url: publicUrl });
     } catch (err) {
-        console.error('Ошибка загрузки картинки:', err);
+        console.error('Ошибка загрузки в S3:', err);
         res.status(500).json({ error: 'Upload Error' });
     }
 });
 
-// 4. Отправка сообщений в личку ВК
+// Отправка сообщений в личку ВК
 app.post('/api/vk-message', async (req, res) => {
     const { token, admin_id, text } = req.body;
     try {
@@ -167,17 +173,12 @@ app.post('/api/vk-message', async (req, res) => {
     }
 });
 
-// Если запрашивают что-то другое - отдаем интерфейс приложения
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Запуск
 app.listen(port, '0.0.0.0', () => {
     console.log('==============================');
-    console.log(`Express started`);
-    console.log(`PORT: ${port}`);
-    console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-    console.log(`PWD: ${process.cwd()}`);
+    console.log(`Сервер запущен на порту ${port}`);
     console.log('==============================');
 });
