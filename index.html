@@ -859,7 +859,7 @@
             privacyDiv.style.marginTop = '15px';
             privacyDiv.innerHTML = `
                 <label style="display: flex; align-items: flex-start; font-weight: normal; font-size: 12px; color: var(--text-soft); cursor: pointer;">
-                    <input type="checkbox" required style="width: auto; margin: 2px 8px 0 0; cursor: pointer;">
+                    <input type="checkbox" required style="width: 20px; height: 20px; flex-shrink: 0; margin: 0 10px 0 0; cursor: pointer;">
                     <span>Я принимаю <a href="https://vk.cc/docs_typical_eula" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Пользовательское соглашение</a> и согласен с <a href="${safeUrl}" target="_blank" style="color: var(--vk-blue); text-decoration: none;">политикой конфиденциальности</a> <span style="color: red;">*</span></span>
                 </label>
             `;
@@ -906,7 +906,18 @@
                     if (data.success_btn_link) {
                         let link = data.success_btn_link;
                         if (!link.startsWith('http')) link = 'https://' + link;
-                        window.open(link, '_blank');
+                    
+                        // Бронебойный способ для мобильного WebView ВК
+                        const a = document.createElement('a');
+                        a.href = link;
+                        a.target = '_blank';
+                        // Добавляем атрибуты безопасности
+                        a.rel = 'noopener noreferrer'; 
+                    
+                        // Невидимо добавляем ссылку на страницу, кликаем и удаляем
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
                     } else {
                         vkBridge.send('VKWebAppClose', {'status': 'success'});
                     }
