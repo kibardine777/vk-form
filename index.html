@@ -380,7 +380,7 @@
                             canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 
                             // Переводим в супер-легкий формат WEBP с качеством 0.6
-                            const base64Data = canvas.toDataURL('image/webp', 0.6);
+                            const base64Data = canvas.toDataURL('image/jpeg', 0.7);
 
                             const res = await fetch('/api/upload', {
                                 method: 'POST',
@@ -388,7 +388,7 @@
                                 body: JSON.stringify({ 
                                     fileData: base64Data, 
                                     fileName: file.name, 
-                                    mimeType: 'image/webp' // Говорим серверу, что это WEBP
+                                    mimeType: 'image/jpeg'
                                 })
                             });
 
