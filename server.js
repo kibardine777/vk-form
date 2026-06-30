@@ -128,12 +128,11 @@ app.post('/api/upload', async (req, res) => {
         const buffer = Buffer.from(base64Data, 'base64');
         
         // ЖЕЛЕЗОБЕТОННОЕ РЕШЕНИЕ ИЗ VERCEL (Системное имя файла)
-        // ИСПРАВИЛИ расширение на .webp, чтобы айфоны не сходили с ума
-        const uniqueName = `cover-${Date.now()}-${Math.floor(Math.random() * 1000)}.webp`;
+        const uniqueName = `cover-${Date.now()}-${Math.floor(Math.random() * 1000)}.jpg`;
 
         const { error } = await supabase.storage
             .from('covers')
-            .upload(uniqueName, buffer, { contentType: 'image/webp' });
+            .upload(uniqueName, buffer, { contentType: 'image/jpeg' });
 
         if (error) throw error;
 
