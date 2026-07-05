@@ -114,6 +114,15 @@ app.post('/api/save', async (req, res) => {
             return res.status(403).json({ error: 'Нет прав администратора сообщества' });
         }
 
+        // === НОВЫЙ БЛОК: ПРОВЕРКА ЛИМИТОВ PRO ===
+        const checkPro = await pool.query('SELECT is_pro FROM forms WHERE vk_group_id = $1', [signedGroupId]);
+        const isPro = checkPro.rows.length > 0 ? checkPro.rows[0].is_pro : false;
+
+        if (!isPro && fields.length > 2) {
+            return res.status(403).json({ error: 'На бесплатном тарифе можно создать только 2 формы. Выберите тариф PRO.' });
+        }
+        // === КОНЕЦ НОВОГО БЛОКА ===
+
         const query = `
             INSERT INTO forms (vk_group_id, fields, launch_params)
             VALUES ($1, $2, $3)
@@ -179,6 +188,66 @@ app.post('/api/vk-message', async (req, res) => {
         console.error('Ошибка ВК:', err);
         res.status(500).json({ error: 'VK API Error' });
     }
+});
+
+// ==========================================
+// ПЛАТЕЖНАЯ СИСТЕМА (ЮKassa)
+// ==========================================
+app.post('/api/pay', async (req, res) => {
+    const { launch_params, plan } = req.body;
+    const urlParams = new URLSearchParams(launch_params);
+    const vk_group_id = urlParams.get('vk_group_id');
+    const vk_app_id = urlParams.get('vk_app_id');
+
+    let amount = '249.00';
+    let description = 'PRO-тариф (1 месяц): до 10 форм';
+    
+    if (plan === '3months') {
+        amount = '669.00';
+        description = 'PRO-тариф (3 месяца): до 10 форм';
+    } else if (plan === '1year') {
+        amount = '2399.00';
+        description = 'PRO-тариф (1 год): до 10 форм';
+    }
+
+    const auth = Buffer.from(`${process.env.YOOKASSA_SHOP_ID}:${process.env.YOOKASSA_SECRET_KEY}`).toString('base64');
+    const idempotenceKey = crypto.randomUUID();
+
+    try {
+        const response = await fetch('https://api.yookassa.ru/v3/payments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${auth}`,
+                'Idempotence-Key': idempotenceKey
+            },
+            body: JSON.stringify({
+                amount: { value: amount, currency: 'RUB' },
+                capture: true,
+                confirmation: { type: 'redirect', return_url: `https://vk.com/app${vk_app_id}_-${vk_group_id}` },
+                description: description,
+                metadata: { vk_group_id: vk_group_id, plan: plan }
+            })
+        });
+        
+        const data = await response.json();
+        res.json({ url: data.confirmation.confirmation_url });
+    } catch (err) {
+        console.error('Ошибка платежа:', err);
+        res.status(500).json({ error: 'Payment error' });
+    }
+});
+
+app.post('/api/webhook', async (req, res) => {
+    const event = req.body;
+    if (event.event === 'payment.succeeded') {
+        const vk_group_id = event.object.metadata.vk_group_id;
+        try {
+            await pool.query('UPDATE forms SET is_pro = true WHERE vk_group_id = $1', [vk_group_id]);
+            console.log(`Группа ${vk_group_id} купила PRO`);
+        } catch (err) { console.error('Ошибка БД:', err); }
+    }
+    res.status(200).send('OK');
 });
 
 app.get('*', (req, res) => {
