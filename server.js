@@ -64,7 +64,14 @@ app.get('/api/load', async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(200).json({ fields: [] });
         }
-        return res.status(200).json(result.rows[0]);
+        const row = result.rows[0];
+        
+        // ПРОВЕРКА ВРЕМЕНИ: Если PRO есть, но срок вышел — отключаем
+        if (row.is_pro && row.pro_expires_at && new Date(row.pro_expires_at) < new Date()) {
+            row.is_pro = false;
+        }
+        
+        return res.status(200).json(row);
     } catch (err) {
         console.error('Ошибка загрузки:', err);
         res.status(500).json({ error: 'DB Error' });
@@ -114,9 +121,17 @@ app.post('/api/save', async (req, res) => {
             return res.status(403).json({ error: 'Нет прав администратора сообщества' });
         }
 
-        // === НОВЫЙ БЛОК: ПРОВЕРКА ЛИМИТОВ PRO ===
-        const checkPro = await pool.query('SELECT is_pro FROM forms WHERE vk_group_id = $1', [signedGroupId]);
-        const isPro = checkPro.rows.length > 0 ? checkPro.rows[0].is_pro : false;
+        // === НОВЫЙ БЛОК: ПРОВЕРКА ЛИМИТОВ И ВРЕМЕНИ PRO ===
+        const checkPro = await pool.query('SELECT is_pro, pro_expires_at FROM forms WHERE vk_group_id = $1', [signedGroupId]);
+        let isPro = false;
+        
+        if (checkPro.rows.length > 0) {
+            const row = checkPro.rows[0];
+            // PRO активен, если стоит галочка И (время не указано ИЛИ оно еще не вышло)
+            if (row.is_pro && (!row.pro_expires_at || new Date(row.pro_expires_at) > new Date())) {
+                isPro = true;
+            }
+        }
 
         if (!isPro && fields.length > 2) {
             return res.status(403).json({ error: 'На бесплатном тарифе можно создать только 2 формы. Выберите тариф PRO.' });
@@ -242,10 +257,28 @@ app.post('/api/webhook', async (req, res) => {
     const event = req.body;
     if (event.event === 'payment.succeeded') {
         const vk_group_id = event.object.metadata.vk_group_id;
+        const plan = event.object.metadata.plan; // Узнаем, какой тариф оплатили
+        
+        // Определяем, сколько времени добавлять
+        let interval = '1 month';
+        if (plan === '3months') interval = '3 months';
+        if (plan === '1year') interval = '1 year';
+
         try {
-            await pool.query('UPDATE forms SET is_pro = true WHERE vk_group_id = $1', [vk_group_id]);
-            console.log(`Группа ${vk_group_id} купила PRO`);
-        } catch (err) { console.error('Ошибка БД:', err); }
+            const query = `
+                UPDATE forms 
+                SET is_pro = true, 
+                    pro_expires_at = CASE 
+                        WHEN pro_expires_at > CURRENT_TIMESTAMP THEN pro_expires_at + INTERVAL '${interval}'
+                        ELSE CURRENT_TIMESTAMP + INTERVAL '${interval}'
+                    END
+                WHERE vk_group_id = $1
+            `;
+            await pool.query(query, [vk_group_id]);
+            console.log(`✅ Группа ${vk_group_id} купила PRO на ${interval}`);
+        } catch (err) { 
+            console.error('Ошибка БД при обновлении статуса:', err); 
+        }
     }
     res.status(200).send('OK');
 });
