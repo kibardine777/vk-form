@@ -1077,7 +1077,14 @@ function payTariff(plan) {
         .then(res => res.json())
         .then(data => {
             if (data.url) {
-                window.location.href = data.url;
+                // Бронебойный способ открытия платежки вне iframe ВК
+                const a = document.createElement('a');
+                a.href = data.url;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             } else {
                 showNotify("Ошибка создания платежа. Попробуйте позже.", true);
             }
