@@ -97,7 +97,7 @@
     <button class="btn-main" onclick="vkBridge.send('VKWebAppAddToCommunity')">Добавить в сообщество</button>
     
     <div style="margin-top: 20px; font-size: 11px; color: var(--text-soft); text-align: center; line-height: 1.4;">
-        Продолжая, вы принимаете <a href="https://vk.cc/docs_typical_eula" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Пользовательское соглашение</a><br>и <a href="https://vk.com/@flow_digital-politika-konfidencialnosti" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Политику конфиденциальности</a> сервиса.
+        Продолжая, вы принимаете <a href="https://vk.com/@flow_digital-dogovor-publichnoi-oferty" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Пользовательское соглашение</a><br>и <a href="https://vk.com/@flow_digital-politika-konfidencialnosti" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Политику конфиденциальности</a> сервиса.
     </div>
 </div>
 
@@ -114,7 +114,7 @@
     <button class="btn-main" onclick="createNewForm()" style="margin-top: 10px; position: relative; z-index: 10;">+ Создать новую форму</button>
     
     <div style="margin-top: 20px; font-size: 11px; color: var(--text-soft); text-align: center; line-height: 1.4;">
-        Используя сервис, вы принимаете <br><a href="https://vk.cc/docs_typical_eula" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Пользовательское соглашение</a> и <a href="https://vk.com/@flow_digital-politika-konfidencialnosti" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Политику конфиденциальности</a>.
+        Используя сервис, вы принимаете <br><a href="https://vk.com/@flow_digital-dogovor-publichnoi-oferty" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Пользовательское соглашение</a> и <a href="https://vk.com/@flow_digital-politika-konfidencialnosti" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Политику конфиденциальности</a>.
     </div>
 </div>
 
@@ -265,6 +265,7 @@
     let editingFormId = null; 
     let currentUserProfile = null;
     let currentGroupToken = '';
+    let isUserPro = false;
 
     let modalCallback = null;
     function showModal(title, text, type, callback) {
@@ -439,6 +440,8 @@
             
             const data = await response.json();
 
+            isUserPro = data.is_pro || false;
+            
             if (data && data.fields) {
                 if (data.fields.length === 0) {
                     allForms = [];
@@ -512,13 +515,39 @@
             `;
             container.appendChild(div);
         });
+
+        // --- БЛОК ТАРИФОВ ИЛИ ПЛАШКА PRO ---
+        if (!isUserPro) {
+            const promo = document.createElement('div');
+            promo.innerHTML = `
+                <div style="margin-top: 30px; padding: 20px; border: 1px solid #e1e3e6; border-radius: 12px; text-align: center; background-color: #f5f7f9;">
+                    <p style="margin-bottom: 15px; color: #626d7a; font-size: 14px; line-height: 1.4;">
+                        <strong>Внимание:</strong> Бесплатно можно использовать только <strong>2 формы</strong>.<br>
+                        Для снятия лимитов (до 10 форм) выберите тариф PRO:
+                    </p>
+                    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="payTariff('1month')" style="background-color: #5181b8; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">1 месяц<br>249 ₽</button>
+                        <button onclick="payTariff('3months')" style="background-color: #5181b8; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">3 месяца<br>669 ₽</button>
+                        <button onclick="payTariff('1year')" style="background-color: #4bb34b; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">1 год<br>2399 ₽</button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(promo);
+        } else {
+            const proBadge = document.createElement('div');
+            proBadge.innerHTML = `<div style="margin-top: 20px; text-align: center; color: #4bb34b; font-weight: bold; font-size: 14px;">⭐ У вас активен тариф PRO</div>`;
+            container.appendChild(proBadge);
+        }
     }
 
     function createNewForm() {
-        // Проверяем лимит перед созданием
-        if (allForms.length >= 10) {
-            showNotify('Достигнут лимит: максимальное число форм — 10.', true);
-            return; // Останавливаем выполнение, редактор не откроется
+        if (!isUserPro && allForms.length >= 2) {
+            showNotify('На бесплатном тарифе доступно только 2 формы. Выберите тариф PRO ниже!', true);
+            return; 
+        }
+        if (isUserPro && allForms.length >= 10) {
+            showNotify('Достигнут максимальный лимит PRO (10 форм).', true);
+            return;
         }
         
         editingFormId = generateId();
@@ -1037,6 +1066,24 @@
     }
 
     start();
+    
+function payTariff(plan) {
+        fetch('/api/pay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ launch_params: window.location.search, plan: plan })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                showNotify("Ошибка создания платежа. Попробуйте позже.", true);
+            }
+        })
+        .catch(err => console.error("Ошибка:", err));
+    }
+
 </script>
 </body>
 </html>
