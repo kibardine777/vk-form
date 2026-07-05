@@ -111,10 +111,25 @@
     <h2 style="margin:0 0 8px 0;">Управление формами</h2>
     <p class="desc">Создавайте разные формы для акций и задач.</p>
     <div id="formsListContainer"></div>
+    
     <button class="btn-main" onclick="createNewForm()" style="margin-top: 10px; position: relative; z-index: 10;">+ Создать новую форму</button>
     
+    <div id="promoBlock" class="hidden">
+        <div style="margin-top: 30px; padding: 20px; border: 1px solid #e1e3e6; border-radius: 12px; text-align: center; background-color: #f5f7f9;">
+            <p style="margin-bottom: 15px; color: #626d7a; font-size: 14px; line-height: 1.4;">
+                <strong>Внимание:</strong> Бесплатно можно использовать только <strong>2 формы</strong>.<br>
+                Для снятия лимитов (до 10 форм) выберите тариф PRO:
+            </p>
+            <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="payTariff('1month')" style="background-color: #5181b8; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">1 месяц<br>249 ₽</button>
+                <button onclick="payTariff('3months')" style="background-color: #5181b8; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">3 месяца<br>669 ₽</button>
+                <button onclick="payTariff('1year')" style="background-color: #4bb34b; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">1 год<br>2399 ₽</button>
+            </div>
+        </div>
+    </div>
+    <div id="proBadge" class="hidden" style="margin-top: 20px; text-align: center; color: #4bb34b; font-weight: bold; font-size: 14px;">⭐ У вас активен тариф PRO</div>
     <div style="margin-top: 20px; font-size: 11px; color: var(--text-soft); text-align: center; line-height: 1.4;">
-        Используя сервис, вы принимаете <br><a href="https://vk.com/@flow_digital-dogovor-publichnoi-oferty" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Пользовательское соглашение</a> и <a href="https://vk.com/@flow_digital-politika-konfidencialnosti" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Политику конфиденциальности</a>.
+        Используя сервис, вы принимаете <br><a href="https://vk.cc/docs_typical_eula" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Пользовательское соглашение</a> и <a href="https://vk.com/@flow_digital-politika-konfidencialnosti" target="_blank" style="color: var(--vk-blue); text-decoration: none;">Политику конфиденциальности</a>.
     </div>
 </div>
 
@@ -516,27 +531,13 @@
             container.appendChild(div);
         });
 
-        // --- БЛОК ТАРИФОВ ИЛИ ПЛАШКА PRO ---
+        // Показываем нужный блок под кнопкой в зависимости от тарифа
         if (!isUserPro) {
-            const promo = document.createElement('div');
-            promo.innerHTML = `
-                <div style="margin-top: 30px; padding: 20px; border: 1px solid #e1e3e6; border-radius: 12px; text-align: center; background-color: #f5f7f9;">
-                    <p style="margin-bottom: 15px; color: #626d7a; font-size: 14px; line-height: 1.4;">
-                        <strong>Внимание:</strong> Бесплатно можно использовать только <strong>2 формы</strong>.<br>
-                        Для снятия лимитов (до 10 форм) выберите тариф PRO:
-                    </p>
-                    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-                        <button onclick="payTariff('1month')" style="background-color: #5181b8; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">1 месяц<br>249 ₽</button>
-                        <button onclick="payTariff('3months')" style="background-color: #5181b8; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">3 месяца<br>669 ₽</button>
-                        <button onclick="payTariff('1year')" style="background-color: #4bb34b; color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 13px;">1 год<br>2399 ₽</button>
-                    </div>
-                </div>
-            `;
-            container.appendChild(promo);
+            document.getElementById('promoBlock').classList.remove('hidden');
+            document.getElementById('proBadge').classList.add('hidden');
         } else {
-            const proBadge = document.createElement('div');
-            proBadge.innerHTML = `<div style="margin-top: 20px; text-align: center; color: #4bb34b; font-weight: bold; font-size: 14px;">⭐ У вас активен тариф PRO</div>`;
-            container.appendChild(proBadge);
+            document.getElementById('promoBlock').classList.add('hidden');
+            document.getElementById('proBadge').classList.remove('hidden');
         }
     }
 
