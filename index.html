@@ -280,7 +280,7 @@
 
     let gid = params.get('vk_group_id');
     const role = params.get('vk_viewer_group_role'); 
-    const viewerId = params.get('vk_viewer_id');
+    const viewerId = params.get('vk_user_id');
     const MY_VK_ID = '52069477';
 
     let allForms = []; 
@@ -330,7 +330,6 @@
     }
     
     function requestGroupToken() {
-        // Шаг 1: Получаем токен сообщества (твой первый скрин)
         vkBridge.send("VKWebAppGetCommunityToken", {
             "app_id": parseInt(params.get('vk_app_id')),
             "group_id": parseInt(gid),
@@ -342,19 +341,31 @@
                 document.getElementById('tokenBtn').innerText = '✅ Уведомления ВК включены';
                 document.getElementById('tokenBtn').style.background = '#4BB34B';
 
-                // Шаг 2: СРАЗУ просим разрешить писать в личку (твой второй скрин)
                 vkBridge.send("VKWebAppAllowMessagesFromGroup", {
                     "group_id": parseInt(gid)
                 })
                 .then(() => {
-                    // Шаг 3: Автоматически добавляем ID этого админа в поле, если его там нет
+                    // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
                     const adminInput = document.getElementById('editAdminIds');
-                    if (viewerId && !adminInput.value.includes(viewerId)) {
+                    // Берем правильный параметр ВК: vk_user_id
+                    const realUserId = params.get('vk_user_id'); 
+                    
+                    if (realUserId && !adminInput.value.includes(realUserId)) {
                         let currentVal = adminInput.value.trim();
-                        if (currentVal && !currentVal.endsWith(',')) currentVal += ', ';
-                        adminInput.value = currentVal + viewerId;
-                        cleanAdminIds(adminInput); // Сразу причесываем
+                        // Если строка не пустая и там нет запятой в конце - ставим её
+                        if (currentVal && !currentVal.endsWith(',')) {
+                            currentVal += ', ';
+                        }
+                        adminInput.value = currentVal + realUserId;
+                        
+                        // Если поле изначально было пустым, убираем лишнюю запятую в начале
+                        if (adminInput.value.trim().startsWith(',')) {
+                            adminInput.value = adminInput.value.replace(/^,\s*/, '');
+                        }
+                        
+                        cleanAdminIds(adminInput); // Причесываем строку
                     }
+                    // -------------------------
                     
                     showNotify("Супер! Личные сообщения открыты. Не забудьте сохранить форму.");
                 })
