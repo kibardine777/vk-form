@@ -288,6 +288,7 @@
     let currentUserProfile = null;
     let currentGroupToken = '';
     let isUserPro = false;
+    let proExpiresAt = null;
 
     let modalCallback = null;
     function showModal(title, text, type, callback) {
@@ -463,6 +464,7 @@
             const data = await response.json();
 
             isUserPro = data.is_pro || false;
+            proExpiresAt = data.pro_expires_at || null;
             
             if (data && data.fields) {
                 if (data.fields.length === 0) {
@@ -540,12 +542,38 @@
         });
 
         // Показываем нужный блок под кнопкой в зависимости от тарифа
+        // Показываем нужный блок под кнопкой в зависимости от тарифа
         if (!isUserPro) {
             document.getElementById('promoBlock').classList.remove('hidden');
             document.getElementById('proBadge').classList.add('hidden');
         } else {
             document.getElementById('promoBlock').classList.add('hidden');
-            document.getElementById('proBadge').classList.remove('hidden');
+            
+            const badge = document.getElementById('proBadge');
+            
+            // Если дата есть, считаем остаток дней
+            if (proExpiresAt) {
+                const diffTime = new Date(proExpiresAt) - new Date();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                // Функция для правильного окончания слов
+                const getDaysText = (d) => {
+                    let last = d % 10, lastTwo = d % 100;
+                    if (lastTwo >= 11 && lastTwo <= 19) return d + ' дней';
+                    if (last === 1) return d + ' день';
+                    if (last >= 2 && last <= 4) return d + ' дня';
+                    return d + ' дней';
+                };
+                
+                if (diffDays > 0) {
+                    badge.innerHTML = `⭐ У вас активен тариф PRO <br><span style="color: #818C99; font-weight: normal; font-size: 12px; margin-top: 4px; display: inline-block;">Осталось: ${getDaysText(diffDays)}</span>`;
+                }
+            } else {
+                // Если даты нет (выдали навсегда вручную)
+                badge.innerHTML = `⭐ У вас активен тариф PRO <br><span style="color: #818C99; font-weight: normal; font-size: 12px; margin-top: 4px; display: inline-block;">Безлимитный доступ</span>`;
+            }
+            
+            badge.classList.remove('hidden');
         }
     }
 
