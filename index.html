@@ -166,14 +166,21 @@
     
     <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
     <h3 style="font-size: 16px; text-align: left; margin-bottom: 10px;">🎉 Экран благодарности (после отправки):</h3>
-    <label>Заголовок:</label>
-    <input type="text" id="editSuccessTitle" placeholder="Например: Спасибо!" maxlength="100">
-    <label>Текст сообщения:</label>
-    <textarea id="editSuccessDesc" placeholder="Например: Ваша заявка отправлена..." maxlength="300" style="min-height: 60px;"></textarea>
-    <label>Текст на кнопке:</label>
-    <input type="text" id="editSuccessBtnText" placeholder="Например: Понятно, вернуться в группу" maxlength="100">
-    <label>Ссылка для кнопки (если пусто — кнопка закроет форму):</label>
-    <input type="text" id="editSuccessBtnLink" placeholder="https://vk.com/..." maxlength="300">
+    
+    <div id="proSuccessLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
+        ⭐ Свой экран благодарности доступен на тарифе <b>PRO</b>
+    </div>
+    
+    <div id="successFieldsContainer">
+        <label>Заголовок:</label>
+        <input type="text" id="editSuccessTitle" placeholder="Например: Спасибо!" maxlength="100">
+        <label>Текст сообщения:</label>
+        <textarea id="editSuccessDesc" placeholder="Например: Ваша заявка отправлена..." maxlength="300" style="min-height: 60px;"></textarea>
+        <label>Текст на кнопке:</label>
+        <input type="text" id="editSuccessBtnText" placeholder="Например: Понятно, вернуться в группу" maxlength="100">
+        <label>Ссылка для кнопки (если пусто — кнопка закроет форму):</label>
+        <input type="text" id="editSuccessBtnLink" placeholder="https://vk.com/..." maxlength="300">
+    </div>
     <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
 
     <button class="btn-main" id="tokenBtn" type="button" onclick="requestGroupToken()" style="background: #2787F5; margin-bottom: 10px;">💬 Включить уведомления в личку ВК</button>
@@ -524,6 +531,7 @@
                 <h3>${escapeHTML(form.internal_name || form.title || 'Форма без названия')}</h3>
                 <div class="form-card-actions">
                     <button class="btn-main" onclick="openEditor('${escapeHTML(form.form_id)}')">⚙️ Ред.</button>
+                    <button class="btn-add" onclick="duplicateForm('${escapeHTML(form.form_id)}')">📋 Копия</button>
                     <button class="btn-add" onclick="copyLink('${escapeHTML(form.form_id)}')">🔗 Ссылка</button>
                     <button class="btn-del" onclick="deleteForm('${escapeHTML(form.form_id)}')">Удалить</button>
                 </div>
@@ -553,6 +561,75 @@
         
         editingFormId = generateId();
         openEditor(editingFormId, true);
+    }
+
+    // Проверка прав на PRO-фичи в редакторе
+    function checkProLocks() {
+        const lockMsg = document.getElementById('proSuccessLock');
+        const container = document.getElementById('successFieldsContainer');
+        const inputs = container.querySelectorAll('input, textarea');
+        
+        if (!isUserPro) {
+            lockMsg.classList.remove('hidden');
+            container.style.opacity = '0.5';
+            container.style.pointerEvents = 'none'; // Полностью блокируем клики
+            inputs.forEach(inp => inp.disabled = true);
+        } else {
+            lockMsg.classList.add('hidden');
+            container.style.opacity = '1';
+            container.style.pointerEvents = 'auto';
+            inputs.forEach(inp => inp.disabled = false);
+        }
+    }
+
+    // Создание копии формы
+    function duplicateForm(id) {
+        if (!isUserPro && allForms.length >= 2) {
+            showNotify('На бесплатном тарифе доступно только 2 формы. Выберите тариф PRO ниже!', true);
+            return;
+        }
+        if (isUserPro && allForms.length >= 10) {
+            showNotify('Достигнут максимальный лимит PRO (10 форм).', true);
+            return;
+        }
+        
+        const formToCopy = allForms.find(f => f.form_id === id);
+        if (!formToCopy) return;
+
+        editingFormId = generateId(); 
+        hideAll();
+        document.getElementById('adminView').classList.remove('hidden');
+        
+        document.getElementById('editFormName').value = (formToCopy.internal_name || formToCopy.title || 'Форма') + ' (Копия)';
+        document.getElementById('editProjectName').value = formToCopy.project_name || '';
+        document.getElementById('editTitle').value = formToCopy.title || '';
+        document.getElementById('editSubtitle').value = formToCopy.subtitle || '';
+        document.getElementById('editImage').value = formToCopy.image_url || '';
+        document.getElementById('editKey').value = formToCopy.web3forms_key || '';
+        
+        document.getElementById('editSuccessTitle').value = formToCopy.success_title || '';
+        document.getElementById('editSuccessDesc').value = formToCopy.success_desc || '';
+        document.getElementById('editSuccessBtnText').value = formToCopy.success_btn_text || '';
+        document.getElementById('editSuccessBtnLink').value = formToCopy.success_btn_link || '';
+        
+        document.getElementById('editAdminIds').value = formToCopy.admin_vk_ids || '';
+        document.getElementById('editPrivacy').value = formToCopy.privacy_url || '';
+        
+        currentGroupToken = formToCopy.group_token || ''; 
+        if (currentGroupToken) {
+            document.getElementById('tokenBtn').innerText = '✅ Уведомления ВК включены';
+            document.getElementById('tokenBtn').style.background = '#4BB34B';
+        } else {
+            document.getElementById('tokenBtn').innerText = '💬 Включить уведомления в личку ВК';
+            document.getElementById('tokenBtn').style.background = '#2787F5';
+        }
+
+        // Глубокое копирование вопросов
+        currentFields = JSON.parse(JSON.stringify(formToCopy.fields || []));
+        renderFieldsEditor();
+        checkProLocks(); 
+        
+        showNotify('Копия создана! Внесите изменения и сохраните форму.');
     }
 
     function deleteForm(id) {
@@ -615,6 +692,7 @@
 
         currentFields = form.fields || [];
         renderFieldsEditor();
+        checkProLocks();
     }
     
     function cancelEdit() {
@@ -920,11 +998,11 @@
             hideAll();
             document.getElementById('successModal').classList.remove('hidden');
 
-            document.getElementById('successTitle').innerText = data.success_title || 'Спасибо!';
-            document.getElementById('successDesc').innerText = data.success_desc || 'Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.';
+            document.getElementById('successTitle').innerText = (isUserPro && data.success_title) ? data.success_title : 'Спасибо!';
+            document.getElementById('successDesc').innerText = (isUserPro && data.success_desc) ? data.success_desc : 'Ваша заявка отправлена. В ближайшее рабочее время мы свяжемся с вами.';
             
             const sBtn = document.getElementById('successBtn');
-            sBtn.innerText = data.success_btn_text || 'Понятно, вернуться в группу';
+            sBtn.innerText = (isUserPro && data.success_btn_text) ? data.success_btn_text : 'Понятно, вернуться в группу';
             
             const previewBtn = document.getElementById('previewCloseSuccessBtn');
 
@@ -934,18 +1012,15 @@
             } else {
                 previewBtn.classList.add('hidden');
                 sBtn.onclick = () => {
-                    if (data.success_btn_link) {
+                    if (isUserPro && data.success_btn_link) {
                         let link = data.success_btn_link;
                         if (!link.startsWith('http')) link = 'https://' + link;
                     
-                        // Бронебойный способ для мобильного WebView ВК
                         const a = document.createElement('a');
                         a.href = link;
                         a.target = '_blank';
-                        // Добавляем атрибуты безопасности
                         a.rel = 'noopener noreferrer'; 
                     
-                        // Невидимо добавляем ссылку на страницу, кликаем и удаляем
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
