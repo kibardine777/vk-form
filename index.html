@@ -154,7 +154,7 @@
     <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
     
     <label>ID администраторов ВКонтакте (через запятую) <span style="color:#FF3B30">*</span>:</label>
-    <input type="text" id="editAdminIds" placeholder="Например: 52069477, 12345678" maxlength="300">
+    <input type="text" id="editAdminIds" placeholder="Например: 52069477, 12345678" maxlength="300" onblur="cleanAdminIds(this)">
     
     <label>Ссылка на политику конфиденциальности <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy" maxlength="300">
@@ -316,7 +316,21 @@
         setTimeout(() => toast.classList.add('hidden'), 3000);
     }
 
+    // Умная очистка поля с ID админов
+    function cleanAdminIds(input) {
+        let val = input.value;
+        // Убираем всё, кроме цифр, пробелов и запятых (удалит буквы id, ссылки и т.д.)
+        val = val.replace(/[^0-9,\s]/g, '');
+        // Заменяем любую комбинацию пробелов и запятых на аккуратную ", "
+        val = val.replace(/[\s,]+/g, ', ').trim();
+        // Убираем запятую в самом конце, если она осталась
+        if (val.endsWith(',')) val = val.slice(0, -1);
+        
+        input.value = val;
+    }
+    
     function requestGroupToken() {
+        // Шаг 1: Получаем токен сообщества (твой первый скрин)
         vkBridge.send("VKWebAppGetCommunityToken", {
             "app_id": parseInt(params.get('vk_app_id')),
             "group_id": parseInt(gid),
@@ -327,7 +341,27 @@
                 currentGroupToken = data.access_token;
                 document.getElementById('tokenBtn').innerText = '✅ Уведомления ВК включены';
                 document.getElementById('tokenBtn').style.background = '#4BB34B';
-                showNotify("Группа успешно авторизована! Не забудьте сохранить форму.");
+
+                // Шаг 2: СРАЗУ просим разрешить писать в личку (твой второй скрин)
+                vkBridge.send("VKWebAppAllowMessagesFromGroup", {
+                    "group_id": parseInt(gid)
+                })
+                .then(() => {
+                    // Шаг 3: Автоматически добавляем ID этого админа в поле, если его там нет
+                    const adminInput = document.getElementById('editAdminIds');
+                    if (viewerId && !adminInput.value.includes(viewerId)) {
+                        let currentVal = adminInput.value.trim();
+                        if (currentVal && !currentVal.endsWith(',')) currentVal += ', ';
+                        adminInput.value = currentVal + viewerId;
+                        cleanAdminIds(adminInput); // Сразу причесываем
+                    }
+                    
+                    showNotify("Супер! Личные сообщения открыты. Не забудьте сохранить форму.");
+                })
+                .catch(error => {
+                    console.log("Отмена разрешения сообщений:", error);
+                    showNotify("Вы не разрешили присылать вам сообщения! Заявки не смогут прийти в личку.", true);
+                });
             }
         })
         .catch(error => {
