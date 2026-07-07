@@ -170,6 +170,18 @@
     <div id="proSuccessLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
         ⭐ Свой экран благодарности доступен на тарифе <b>PRO</b>
     </div>
+
+    <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
+    <h3 style="font-size: 16px; text-align: left; margin-bottom: 10px;">🧲 Ловец упущенных лидов:</h3>
+    
+    <div id="proAbandonedLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
+        ⭐ Эта функция доступна только на тарифе <b>PRO</b>
+    </div>
+    
+    <label style="display: flex; align-items: flex-start; cursor: pointer; font-weight: normal; margin-bottom: 15px;">
+        <input type="checkbox" id="editCatchAbandoned" style="width: 20px; height: 20px; margin-right: 10px; margin-top: 2px;">
+        <span style="font-size: 14px; line-height: 1.4;"><b>Уведомлять в личку ВК</b>, если человек открыл форму, но за 10 минут так и не отправил заявку (поймать брошенную форму).</span>
+    </label>
     
     <div id="successFieldsContainer">
         <label>Заголовок:</label>
@@ -645,16 +657,27 @@
         const container = document.getElementById('successFieldsContainer');
         const inputs = container.querySelectorAll('input, textarea');
         
+        // --- Добавляем блокировку ловца ---
+        const abLock = document.getElementById('proAbandonedLock');
+        const abCheck = document.getElementById('editCatchAbandoned');
+        
         if (!isUserPro) {
             lockMsg.classList.remove('hidden');
             container.style.opacity = '0.5';
-            container.style.pointerEvents = 'none'; // Полностью блокируем клики
+            container.style.pointerEvents = 'none'; 
             inputs.forEach(inp => inp.disabled = true);
+            
+            abLock.classList.remove('hidden');
+            abCheck.disabled = true;
+            abCheck.checked = false;
         } else {
             lockMsg.classList.add('hidden');
             container.style.opacity = '1';
             container.style.pointerEvents = 'auto';
             inputs.forEach(inp => inp.disabled = false);
+            
+            abLock.classList.add('hidden');
+            abCheck.disabled = false;
         }
     }
 
@@ -690,6 +713,8 @@
         
         document.getElementById('editAdminIds').value = formToCopy.admin_vk_ids || '';
         document.getElementById('editPrivacy').value = formToCopy.privacy_url || '';
+        // --- ЗАПОМИНАЕМ ГАЛОЧКУ ПРИ КОПИРОВАНИИ ---
+        document.getElementById('editCatchAbandoned').checked = formToCopy.catch_abandoned || false;
         
         currentGroupToken = formToCopy.group_token || ''; 
         if (currentGroupToken) {
@@ -814,6 +839,7 @@
         
         document.getElementById('editAdminIds').value = form.admin_vk_ids || (isNew ? viewerId : '');
         document.getElementById('editPrivacy').value = form.privacy_url || '';
+        document.getElementById('editCatchAbandoned').checked = form.catch_abandoned || false;
         
         currentGroupToken = form.group_token || ''; 
         if (currentGroupToken) {
@@ -878,7 +904,8 @@
             success_title: document.getElementById('editSuccessTitle').value.trim(),
             success_desc: document.getElementById('editSuccessDesc').value.trim(),
             success_btn_text: document.getElementById('editSuccessBtnText').value.trim(),
-            success_btn_link: document.getElementById('editSuccessBtnLink').value.trim()
+            success_btn_link: document.getElementById('editSuccessBtnLink').value.trim(),
+            catch_abandoned: document.getElementById('editCatchAbandoned').checked
         };
     }
 
@@ -1022,7 +1049,33 @@
     }
 
     function renderClientForm(data, isPreview = false) {
-        hideAll();
+
+    // === ЗАПУСК ЛОВЦА ЛИДОВ (НОВЫЙ КОД) ===
+    if (isUserPro && data.catch_abandoned && !isPreview) {
+        const clientId = params.get('vk_user_id');
+        if (clientId) {
+            const sessionKey = 'opened_' + data.form_id;
+            if (!sessionStorage.getItem(sessionKey)) {
+                sessionStorage.setItem(sessionKey, '1');
+                
+                fetch('/api/track-open', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        vk_group_id: gid,
+                        form_id: data.form_id,
+                        form_name: data.title || data.internal_name || 'Форма',
+                        client_id: clientId,
+                        admin_ids: data.admin_vk_ids,
+                        group_token: data.group_token
+                    })
+                }).catch(e => console.log(e));
+            }
+        }
+    }
+    // === КОНЕЦ ЛОВЦА ЛИДОВ ===
+
+    hideAll();
         document.getElementById('userView').classList.remove('hidden');
         
         if (isPreview) {
@@ -1272,7 +1325,8 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ 
                                 vk_group_id: gid, 
-                                form_id: data.form_id, 
+                                form_id: data.form_id,
+                                client_id: params.get('vk_user_id'),
                                 data: dbData 
                             })
                         });
