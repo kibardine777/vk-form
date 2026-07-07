@@ -6,6 +6,8 @@ const { Pool } = require('pg');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 const app = express();
+// Хранилище таймеров для "Ловца лидов"
+const abandonedTimers = new Map();
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' }));
@@ -186,12 +188,21 @@ app.post('/api/upload', async (req, res) => {
 // ВЫГРУЗКА И СОХРАНЕНИЕ ЗАЯВОК (CRM)
 // ==========================================
 
-// 1. Тихое сохранение новой заявки в базу
+// 1. Тихое сохранение новой заявки в базу (и отмена таймера упущенного лида)
 app.post('/api/submit-lead', async (req, res) => {
-    const { vk_group_id, form_id, data } = req.body;
+    const { vk_group_id, form_id, client_id, data } = req.body;
     if (!vk_group_id || !form_id || !data) return res.status(400).json({ error: 'Bad data' });
     
     try {
+        // Отменяем таймер Ловца лидов, так как человек всё-таки отправил заявку!
+        if (client_id) {
+            const timerKey = `${vk_group_id}_${form_id}_${client_id}`;
+            if (abandonedTimers.has(timerKey)) {
+                clearTimeout(abandonedTimers.get(timerKey));
+                abandonedTimers.delete(timerKey);
+            }
+        }
+
         await pool.query(
             'INSERT INTO leads (vk_group_id, form_id, data) VALUES ($1, $2, $3)',
             [vk_group_id, form_id, JSON.stringify(data)]
@@ -201,6 +212,35 @@ app.post('/api/submit-lead', async (req, res) => {
         console.error('Ошибка сохранения лида:', err);
         res.status(500).json({ error: 'DB Error' });
     }
+});
+
+// === НОВЫЙ РОУТ: Запуск таймера при открытии формы ===
+app.post('/api/track-open', (req, res) => {
+    const { vk_group_id, form_id, form_name, client_id, admin_ids, group_token } = req.body;
+    if (!group_token || !admin_ids || !client_id) return res.status(200).json({ status: 'skip' });
+
+    const timerKey = `${vk_group_id}_${form_id}_${client_id}`;
+    
+    // Если таймер на этого человека уже тикает, не трогаем его
+    if (!abandonedTimers.has(timerKey)) {
+        // Запускаем таймер на 10 минут (10 * 60 * 1000 миллисекунд)
+        const timer = setTimeout(async () => {
+            try {
+                const message = `🧲 Ловец упущенных лидов!\n\nПользователь @id${client_id} открыл вашу форму «${form_name}» более 10 минут назад, но так и не отправил заявку.\n\nВозможно, у него остались вопросы. Вы можете написать ему первыми и помочь с выбором!`;
+                
+                const idsArray = admin_ids.split(',').map(id => id.trim()).filter(id => id);
+                for (const adminId of idsArray) {
+                    const url = `https://api.vk.com/method/messages.send?user_id=${adminId}&message=${encodeURIComponent(message)}&random_id=${Math.floor(Math.random() * 1000000)}&v=5.131&access_token=${group_token}`;
+                    await fetch(url);
+                }
+            } catch (e) { console.error('Ошибка отправки ловца:', e); }
+            
+            abandonedTimers.delete(timerKey);
+        }, 10 * 60 * 1000); 
+
+        abandonedTimers.set(timerKey, timer);
+    }
+    res.status(200).json({ success: true });
 });
 
 // 2. Скачивание заявок в CSV (Только для PRO)
