@@ -576,10 +576,13 @@
             div.className = 'form-card';
             div.innerHTML = `
                 <h3>${escapeHTML(form.internal_name || form.title || 'Форма без названия')}</h3>
-                <div class="form-card-actions">
+                <div class="form-card-actions" style="margin-bottom: 8px;">
                     <button class="btn-main" onclick="openEditor('${escapeHTML(form.form_id)}')">⚙️ Ред.</button>
                     <button class="btn-add" onclick="duplicateForm('${escapeHTML(form.form_id)}')">📋 Копия</button>
                     <button class="btn-add" onclick="copyLink('${escapeHTML(form.form_id)}')">🔗 Ссылка</button>
+                </div>
+                <div class="form-card-actions">
+                    <button class="btn-add" onclick="exportLeads('${escapeHTML(form.form_id)}', this)" style="background: #e6f4ea; color: #1e8e3e; font-weight: 500;">📥 Выгрузить Excel</button>
                     <button class="btn-del" onclick="deleteForm('${escapeHTML(form.form_id)}')">Удалить</button>
                 </div>
             `;
@@ -705,6 +708,51 @@
         showNotify('Копия создана! Внесите изменения и сохраните форму.');
     }
 
+    function exportLeads(formId, btn) {
+        // Проверка прав на скачивание
+        if (!isUserPro) {
+            showNotify('Выгрузка заявок доступна только на тарифе PRO!', true);
+            // Плавно скроллим пользователя к блоку с тарифами
+            const promo = document.getElementById('promoBlock');
+            if(promo && !promo.classList.contains('hidden')) {
+                promo.scrollIntoView({behavior: "smooth"});
+            }
+            return;
+        }
+
+        const originalText = btn.innerText;
+        btn.innerText = '⏳ Собираем...';
+        btn.disabled = true;
+
+        fetch(`/api/export-leads?gid=${gid}&form_id=${formId}`)
+        .then(async res => {
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Ошибка выгрузки');
+            }
+            return res.blob();
+        })
+        .then(blob => {
+            // Магия создания файла в браузере
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Заявки_Формы_${formId}.csv`; 
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            showNotify('Файл успешно скачан!');
+        })
+        .catch(err => {
+            showNotify(err.message, true);
+        })
+        .finally(() => {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+    }
+    
     function deleteForm(id) {
         showModal("Удаление", "Вы точно хотите удалить эту форму?", "confirm", async (isOk) => {
             if (isOk) {
@@ -1194,6 +1242,32 @@
                         }
                     }
                 }
+                                                                
+                // === НОВЫЙ БЛОК: СОХРАНЕНИЕ В БАЗУ ДАННЫХ ДЛЯ EXCEL ===
+                if (!isPreview) {
+                    try {
+                        const dbData = { ...formDataObj };
+                        // Удаляем служебные ключи, чтобы они не мусорили в Excel
+                        delete dbData['access_key'];
+                        delete dbData['from_name'];
+                        delete dbData['subject'];
+                        delete dbData['Форма (суть заявки)'];
+
+                        // Отправляем асинхронно, не задерживая клиента
+                        fetch('/api/submit-lead', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                vk_group_id: gid, 
+                                form_id: data.form_id, 
+                                data: dbData 
+                            })
+                        });
+                    } catch (dbErr) {
+                        console.error('Ошибка сохранения лида:', dbErr);
+                    }
+                }
+                // === КОНЕЦ НОВОГО БЛОКА ===
                                                                 
                 showSuccessScreen();
 
