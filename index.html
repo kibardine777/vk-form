@@ -733,11 +733,24 @@
             return res.blob();
         })
         .then(blob => {
+            // 1. Ищем нормальное название формы
+            const formObj = allForms.find(f => f.form_id === formId);
+            let formName = formObj ? (formObj.internal_name || formObj.title || 'Форма') : 'Форма';
+            
+            // 2. Очищаем название от спецсимволов, чтобы не сломать сохранение файла
+            formName = formName.replace(/[<>:"\/\\|?*]+/g, '').replace(/\s+/g, '_');
+
+            // 3. Берем сегодняшнюю дату (например: 07_07_2026)
+            const dateStr = new Date().toLocaleDateString('ru-RU').replace(/\./g, '_');
+
             // Магия создания файла в браузере
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Заявки_Формы_${formId}.csv`; 
+            
+            // 4. Подставляем красивое имя
+            a.download = `Заявки_${formName}_${dateStr}.csv`; 
+            
             document.body.appendChild(a);
             a.click();
             a.remove();
