@@ -182,6 +182,88 @@ app.post('/api/upload', async (req, res) => {
     }
 });
 
+// ==========================================
+// ВЫГРУЗКА И СОХРАНЕНИЕ ЗАЯВОК (CRM)
+// ==========================================
+
+// 1. Тихое сохранение новой заявки в базу
+app.post('/api/submit-lead', async (req, res) => {
+    const { vk_group_id, form_id, data } = req.body;
+    if (!vk_group_id || !form_id || !data) return res.status(400).json({ error: 'Bad data' });
+    
+    try {
+        await pool.query(
+            'INSERT INTO leads (vk_group_id, form_id, data) VALUES ($1, $2, $3)',
+            [vk_group_id, form_id, JSON.stringify(data)]
+        );
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('Ошибка сохранения лида:', err);
+        res.status(500).json({ error: 'DB Error' });
+    }
+});
+
+// 2. Скачивание заявок в CSV (Только для PRO)
+app.get('/api/export-leads', async (req, res) => {
+    const { gid, form_id } = req.query;
+
+    try {
+        // Проверка тарифа PRO (серверная защита)
+        const checkPro = await pool.query('SELECT is_pro, pro_expires_at FROM forms WHERE vk_group_id = $1', [gid]);
+        let isPro = false;
+        if (checkPro.rows.length > 0) {
+            const row = checkPro.rows[0];
+            if (row.is_pro && (!row.pro_expires_at || new Date(row.pro_expires_at) > new Date())) {
+                isPro = true;
+            }
+        }
+
+        if (!isPro) {
+            return res.status(403).json({ error: 'Выгрузка доступна только на тарифе PRO.' });
+        }
+
+        // Достаем все заявки конкретной формы
+        const leads = await pool.query('SELECT data, created_at FROM leads WHERE vk_group_id = $1 AND form_id = $2 ORDER BY created_at DESC', [gid, form_id]);
+
+        if (leads.rows.length === 0) {
+            return res.status(404).json({ error: 'В этой форме еще нет заявок.' });
+        }
+
+        // Вытаскиваем все названия полей (вопросов)
+        let allKeys = new Set();
+        leads.rows.forEach(row => {
+            Object.keys(row.data).forEach(k => allKeys.add(k));
+        });
+        
+        const headers = ['Дата', ...Array.from(allKeys)];
+        
+        // Магия для Excel: спецификатор BOM (\uFEFF) и разделитель (;)
+        let csvContent = '\uFEFF'; 
+        csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
+
+        leads.rows.forEach(row => {
+            const dateObj = new Date(row.created_at);
+            const dateStr = dateObj.toLocaleString('ru-RU'); // Формат: ДД.ММ.ГГГГ, ЧЧ:ММ
+            
+            const rowData = [dateStr];
+            Array.from(allKeys).forEach(key => {
+                let val = row.data[key] || '';
+                val = String(val).replace(/"/g, '""'); // Экранируем кавычки на всякий случай
+                rowData.push(`"${val}"`);
+            });
+            csvContent += rowData.join(';') + '\n';
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="leads_${form_id}.csv"`);
+        res.send(csvContent);
+
+    } catch (err) {
+        console.error('Ошибка выгрузки:', err);
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
 // Отправка сообщений в личку ВК
 app.post('/api/vk-message', async (req, res) => {
     const { token, admin_id, text } = req.body;
