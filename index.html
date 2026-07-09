@@ -1165,25 +1165,22 @@
         document.getElementById('adminView').classList.remove('hidden');
     }
 
-    function showRouletteScreen(data) {
+    function showRouletteScreen(data, isPreview = false) {
         hideAll();
         document.getElementById('rouletteModal').classList.remove('hidden');
 
         const wheel = document.getElementById('rouletteWheel');
         wheel.innerHTML = '';
-        wheel.style.transform = `rotate(0deg)`; // Сброс позиции
+        wheel.style.transform = `rotate(0deg)`; 
         
-        // Получаем призы или ставим дефолтные, если админ не заполнил
         const prizes = [
             data.prize1 || 'Скидка 5%', data.prize2 || 'Утешительный приз', data.prize3 || 'Бесплатная доставка',
             data.prize4 || 'Подарок к заказу', data.prize5 || 'Скидка 10%', data.prize6 || 'Купон на 500₽'
         ];
 
-        // Отрисовка текста на секторах колеса
         prizes.forEach((prize, i) => {
             const label = document.createElement('div');
             label.className = 'roulette-label';
-            // Смещаем ось на -90 градусов, чтобы центры секторов совпали с фоном (i * 60 + 30 - 90 = i * 60 - 60)
             label.style.transform = `rotate(${i * 60 - 60}deg)`; 
             label.innerText = prize;
             wheel.appendChild(label);
@@ -1193,27 +1190,31 @@
         const resultDiv = document.getElementById('rouletteResult');
         const closeBtn = document.getElementById('rouletteCloseBtn');
         
-        // Скрываем прошлые результаты, если это повторное открытие предпросмотра
         resultDiv.classList.add('hidden');
         closeBtn.classList.add('hidden');
         spinBtn.classList.remove('hidden');
         spinBtn.disabled = false;
-        spinBtn.innerText = '🎰 Крутить колесо!';
+        
+        // Меняем текст кнопки, если это тестовый режим
+        spinBtn.innerText = isPreview ? '🎰 Крутить (Тест)' : '🎰 Крутить колесо!';
 
-        // 🛡 ЗАЩИТА ОТ ЧИТЕРОВ И УМНЫЙ ТАЙМЕР НА 24 ЧАСА (localStorage)
+        // Применяем свой текст на кнопку закрытия, если админ его задал
+        closeBtn.innerText = (data.success_btn_text) ? data.success_btn_text : 'Понятно, вернуться в группу';
+
         const cheatKey = 'spin_' + data.form_id;
-        const lastSpinTime = localStorage.getItem(cheatKey);
         const COOLDOWN_HOURS = 24;
 
-        if (lastSpinTime) {
-            const hoursPassed = (Date.now() - parseInt(lastSpinTime)) / (1000 * 60 * 60);
-            if (hoursPassed < COOLDOWN_HOURS) {
-                const hoursLeft = Math.ceil(COOLDOWN_HOURS - hoursPassed);
-                spinBtn.disabled = true;
-                // Меняем текст кнопки на таймер
-                spinBtn.innerText = `Следующая попытка через ${hoursLeft} ч.`; 
-                closeBtn.classList.remove('hidden');
-                return;
+        // Таймер защиты срабатывает ТОЛЬКО в боевом режиме
+        if (!isPreview) {
+            const lastSpinTime = localStorage.getItem(cheatKey);
+            if (lastSpinTime) {
+                const hoursPassed = (Date.now() - parseInt(lastSpinTime)) / (1000 * 60 * 60);
+                if (hoursPassed < COOLDOWN_HOURS) {
+                    const hoursLeft = Math.ceil(COOLDOWN_HOURS - hoursPassed);
+                    spinBtn.disabled = true;
+                    spinBtn.innerText = `Следующая попытка через ${hoursLeft} ч.`; 
+                    closeBtn.classList.remove('hidden');
+                }
             }
         }
 
@@ -1221,43 +1222,33 @@
             spinBtn.disabled = true;
             spinBtn.innerText = 'Крутится...';
             
-            // Записываем точное время прокрутки в миллисекундах!
-            localStorage.setItem(cheatKey, Date.now().toString()); 
-
-            // Рандомный сектор (от 0 до 5)
-            // Рандомный сектор с учетом математической вероятности (веса)
-            const rand = Math.random() * 100;
-            let randomSector = 5; // По умолчанию сектор 6 (25%)
-            
-            if (rand < 5) {
-                randomSector = 0; // Сектор 1 (Шанс 5%)
-            } else if (rand < 15) {
-                randomSector = 1; // Сектор 2 (Шанс 10%: от 5 до 15)
-            } else if (rand < 35) {
-                randomSector = 2; // Сектор 3 (Шанс 20%: от 15 до 35)
-            } else if (rand < 55) {
-                randomSector = 3; // Сектор 4 (Шанс 20%: от 35 до 55)
-            } else if (rand < 75) {
-                randomSector = 4; // Сектор 5 (Шанс 20%: от 55 до 75)
-            } else {
-                randomSector = 5; // Сектор 6 (Шанс 25%: от 75 до 100)
+            // Фиксируем попытку ТОЛЬКО в боевом режиме
+            if (!isPreview) {
+                localStorage.setItem(cheatKey, Date.now().toString()); 
             }
-            const prizeText = prizes[randomSector];
 
-            // Математика поворота: 5 полных оборотов (1800 градусов) + доворот до нужного сектора
+            const rand = Math.random() * 100;
+            let randomSector = 5; 
+            if (rand < 5) randomSector = 0; 
+            else if (rand < 15) randomSector = 1; 
+            else if (rand < 35) randomSector = 2; 
+            else if (rand < 55) randomSector = 3; 
+            else if (rand < 75) randomSector = 4; 
+            else randomSector = 5; 
+
+            const prizeText = prizes[randomSector];
             const spinDegrees = 1800 + (360 - (randomSector * 60) - 30); 
 
             wheel.style.transform = `rotate(${spinDegrees}deg)`;
 
-            // Ждем 4 секунды (время CSS анимации), затем выдаем приз
             setTimeout(() => {
                 resultDiv.innerText = `🎁 Вы выиграли: ${prizeText}`;
                 resultDiv.classList.remove('hidden');
                 closeBtn.classList.remove('hidden');
                 spinBtn.classList.add('hidden');
 
-                // Моментально отправляем уведомление админу в ВК с выигрышем!
-                if (data.group_token && data.admin_vk_ids) {
+                // Отправляем уведомление в личку ТОЛЬКО в боевом режиме
+                if (!isPreview && data.group_token && data.admin_vk_ids) {
                     let vkText = `🎰 Пользователь покрутил Колесо Фортуны!\nФорма: ${data.title || 'Без названия'}\n\n🎁 Выигрыш: ${prizeText}`;
                     if (currentUserProfile && currentUserProfile.id) {
                         vkText += `\n👤 Клиент: https://vk.com/id${currentUserProfile.id}`;
@@ -1273,6 +1264,32 @@
                 }
             }, 4000); 
         };
+
+        // 🚀 НОВАЯ ЛОГИКА ЗАКРЫТИЯ ОКНА
+        closeBtn.onclick = () => {
+            if (isPreview) {
+                // Если мы тестируем — возвращаемся обратно в настройки!
+                closePreview(); 
+            } else {
+                if (data.success_btn_link) {
+                    // Если админ указал ссылку — переходим по ней
+                    let link = data.success_btn_link;
+                    if (!link.startsWith('http')) link = 'https://' + link;
+                    const a = document.createElement('a');
+                    a.href = link;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer'; 
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    // Стандартное закрытие ВК (с подстраховкой для ПК)
+                    vkBridge.send('VKWebAppClose', {'status': 'success'})
+                        .catch(() => showNotify('Форма отправлена! Вкладку можно закрыть.'));
+                }
+            }
+        };
+    }
 
         closeBtn.onclick = () => {
             vkBridge.send('VKWebAppClose', {'status': 'success'});
@@ -1567,8 +1584,8 @@
                 }
                 // === КОНЕЦ НОВОГО БЛОКА ===
                                                                 
-                if (isUserPro && data.roulette_enabled && !isPreview) {
-                    showRouletteScreen(data);
+                if (isUserPro && data.roulette_enabled) {
+                    showRouletteScreen(data, isPreview);
                 } else {
                     showSuccessScreen();
                 }
