@@ -618,7 +618,7 @@
         }
 
         try {
-            const response = await fetch(`/api/load?gid=${gid}`);
+            const response = await fetch(`/api/load?gid=${gid}&launch_params=${encodeURIComponent(cleanSearch.substring(1))}`);
             if (!response.ok) throw new Error('Ошибка сети');
             
             const data = await response.json();
@@ -1249,7 +1249,7 @@
                 spinBtn.classList.add('hidden');
 
                 // Отправляем уведомление в личку ТОЛЬКО в боевом режиме
-                if (!isPreview && data.group_token && data.admin_vk_ids) {
+                if (!isPreview && data.admin_vk_ids) {
                     let vkText = `🎰 Пользователь покрутил Колесо Фортуны!\nФорма: ${data.title || 'Без названия'}\n\n🎁 Выигрыш: ${prizeText}`;
                     if (currentUserProfile && currentUserProfile.id) {
                         vkText += `\n👤 Клиент: https://vk.com/id${currentUserProfile.id}`;
@@ -1259,7 +1259,7 @@
                         fetch('/api/vk-message', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ token: data.group_token, admin_id: adminId, text: vkText })
+                            body: JSON.stringify({ vk_group_id: gid, admin_id: adminId, text: vkText, launch_params: cleanSearch.substring(1) })
                         }).catch(e => console.error(e));
                     }
                 }
@@ -1311,7 +1311,7 @@
                         form_name: data.title || data.internal_name || 'Форма',
                         client_id: clientId,
                         admin_ids: data.admin_vk_ids,
-                        group_token: data.group_token
+                        launch_params: cleanSearch.substring(1)
                     })
                 }).catch(e => console.log(e));
             }
@@ -1534,7 +1534,7 @@
                     }
                 }
                 
-                if (data.group_token && data.admin_vk_ids) {
+                if (data.admin_vk_ids) {
                     let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
                     
                     if (currentUserProfile && currentUserProfile.id) {
@@ -1553,7 +1553,7 @@
                             await fetch('/api/vk-message', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ token: data.group_token, admin_id: adminId, text: vkText })
+                                body: JSON.stringify({ vk_group_id: gid, admin_id: adminId, text: vkText, launch_params: cleanSearch.substring(1) })
                             });
                         } catch (vkErr) {
                             console.error(`Ошибка отправки админу ${adminId}:`, vkErr);
