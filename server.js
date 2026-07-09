@@ -58,7 +58,7 @@ const BUCKET_NAME = 'vk-forms-images';
 
 // Загрузка настроек формы
 app.get('/api/load', async (req, res) => {
-    const gid = req.query.gid;
+    const { gid, launch_params } = req.query; // Добавили launch_params
     if (!gid) return res.status(400).json({ error: 'No vk_group_id' });
 
     try {
@@ -67,12 +67,29 @@ app.get('/api/load', async (req, res) => {
             return res.status(200).json({ fields: [] });
         }
         const row = result.rows[0];
-        
-        // ПРОВЕРКА ВРЕМЕНИ: Если PRO есть, но срок вышел — отключаем
+
         if (row.is_pro && row.pro_expires_at && new Date(row.pro_expires_at) < new Date()) {
             row.is_pro = false;
         }
-        
+
+        // === БЛОКИРОВКА УТЕЧКИ ТОКЕНА ===
+        let isAdmin = false;
+        if (launch_params) {
+            const urlParams = new URLSearchParams(launch_params);
+            const role = urlParams.get('vk_viewer_group_role');
+            const isOwner = urlParams.get('vk_viewer_id') === '52069477';
+            if (role === 'admin' || role === 'editor' || isOwner) isAdmin = true;
+        }
+
+        // Если зашел обычный клиент — вырезаем токен группы из ответа!
+        if (!isAdmin && row.fields) {
+            row.fields = row.fields.map(f => {
+                const safeForm = { ...f };
+                delete safeForm.group_token;
+                return safeForm;
+            });
+        }
+
         return res.status(200).json(row);
     } catch (err) {
         console.error('Ошибка загрузки:', err);
@@ -230,28 +247,47 @@ app.post('/api/submit-lead', async (req, res) => {
 });
 
 // === НОВЫЙ РОУТ: Запуск таймера при открытии формы ===
-app.post('/api/track-open', (req, res) => {
-    const { vk_group_id, form_id, form_name, client_id, admin_ids, group_token } = req.body;
-    if (!group_token || !admin_ids || !client_id) return res.status(200).json({ status: 'skip' });
+app.post('/api/track-open', (req, res) => { 
+    const { vk_group_id, form_id, form_name, client_id, admin_ids, launch_params } = req.body;
+    if (!admin_ids || !client_id || !launch_params) return res.status(200).json({ status: 'skip' });
+
+    // Проверка подписи от спамеров
+    const urlParams = new URLSearchParams(launch_params);
+    const secret = process.env.VK_APP_SECRET;
+    const sign = urlParams.get('sign');
+    const queryParams = [];
+    for (const [key, value] of urlParams.entries()) {
+        if (key.startsWith('vk_')) queryParams.push({ key, value });
+    }
+    const queryString = queryParams.sort((a, b) => a.key.localeCompare(b.key)).map(({ key, value }) => `${key}=${encodeURIComponent(value)}`).join('&');
+    const paramsHash = crypto.createHmac('sha256', secret).update(queryString).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=$/, '');
+    if (paramsHash !== sign) return res.status(200).json({ status: 'skip' });
 
     const timerKey = `${vk_group_id}_${form_id}_${client_id}`;
-    
-    // Если таймер на этого человека уже тикает, не трогаем его
+
     if (!abandonedTimers.has(timerKey)) {
-        // Запускаем таймер на 10 минут (10 * 60 * 1000 миллисекунд)
         const timer = setTimeout(async () => {
             try {
+                // ДОСТАЕМ ТОКЕН НАПРЯМУЮ ИЗ БД
+                const dbRes = await pool.query('SELECT fields FROM forms WHERE vk_group_id = $1', [vk_group_id]);
+                if (dbRes.rows.length === 0) return;
+                let token = null;
+                for (let f of dbRes.rows[0].fields) {
+                    if (f.group_token) { token = f.group_token; break; }
+                }
+                if (!token) return; 
+
                 const message = `🧲 Ловец упущенных лидов!\n\nПользователь @id${client_id} открыл вашу форму «${form_name}» более 10 минут назад, но так и не отправил заявку.\n\nВозможно, у него остались вопросы. Вы можете написать ему первыми и помочь с выбором!`;
-                
+
                 const idsArray = admin_ids.split(',').map(id => id.trim()).filter(id => id);
                 for (const adminId of idsArray) {
-                    const url = `https://api.vk.com/method/messages.send?user_id=${adminId}&message=${encodeURIComponent(message)}&random_id=${Math.floor(Math.random() * 1000000)}&v=5.131&access_token=${group_token}`;
+                    const url = `https://api.vk.com/method/messages.send?user_id=${adminId}&message=${encodeURIComponent(message)}&random_id=${Math.floor(Math.random() * 1000000)}&v=5.131&access_token=${token}`;
                     await fetch(url);
                 }
             } catch (e) { console.error('Ошибка отправки ловца:', e); }
-            
+
             abandonedTimers.delete(timerKey);
-        }, 10 * 60 * 1000); 
+        }, 10 * 60 * 1000);
 
         abandonedTimers.set(timerKey, timer);
     }
@@ -345,8 +381,33 @@ app.get('/api/export-leads', async (req, res) => {
 
 // Отправка сообщений в личку ВК
 app.post('/api/vk-message', async (req, res) => {
-    const { token, admin_id, text } = req.body;
+    const { vk_group_id, admin_id, text, launch_params } = req.body;
+    
     try {
+        // 1. Проверяем подпись (чтобы боты не отправляли спам от имени твоей группы)
+        if (!launch_params) return res.status(403).json({ error: 'Нет подписи' });
+        const urlParams = new URLSearchParams(launch_params);
+        const secret = process.env.VK_APP_SECRET;
+        const sign = urlParams.get('sign');
+        const queryParams = [];
+        for (const [key, value] of urlParams.entries()) {
+            if (key.startsWith('vk_')) queryParams.push({ key, value });
+        }
+        const queryString = queryParams.sort((a, b) => a.key.localeCompare(b.key)).map(({ key, value }) => `${key}=${encodeURIComponent(value)}`).join('&');
+        const paramsHash = crypto.createHmac('sha256', secret).update(queryString).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=$/, '');
+        if (paramsHash !== sign) return res.status(403).json({ error: 'Неверная подпись' });
+
+        // 2. Достаем токен безопасно из базы данных
+        const dbRes = await pool.query('SELECT fields FROM forms WHERE vk_group_id = $1', [vk_group_id]);
+        if (dbRes.rows.length === 0) return res.status(404).json({error: 'Form not found'});
+
+        let token = null;
+        for (let f of dbRes.rows[0].fields) {
+            if (f.group_token) { token = f.group_token; break; }
+        }
+        if (!token) return res.status(400).json({error: 'No token in DB'});
+
+        // 3. Отправляем сообщение
         const response = await fetch('https://api.vk.com/method/messages.send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
