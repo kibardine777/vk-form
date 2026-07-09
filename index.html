@@ -229,7 +229,7 @@
     <div id="proSuccessLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
         ⭐ Свой экран благодарности доступен на тарифе <b>PRO</b>
         <label style="display: flex; align-items: flex-start; cursor: pointer; font-weight: normal; margin-bottom: 15px;">
-        <input type="checkbox" id="editEnableRoulette" style="width: 20px; height: 20px; margin-right: 10px; margin-top: 2px;">
+        <input type="checkbox" id="editEnableRoulette" onchange="document.getElementById('rouletteFieldsContainer').classList.toggle('hidden', !this.checked)" style="width: 20px; height: 20px; margin-right: 10px; margin-top: 2px;">
         <span style="font-size: 14px; line-height: 1.4;"><b>Включить «Колесо Фортуны»</b> вместо обычного экрана благодарности.</span>
     </label>
     
@@ -917,6 +917,13 @@
         document.getElementById('editAdminIds').value = form.admin_vk_ids || (isNew ? viewerId : '');
         document.getElementById('editPrivacy').value = form.privacy_url || '';
         document.getElementById('editCatchAbandoned').checked = form.catch_abandoned || false;
+        document.getElementById('editEnableRoulette').checked = form.roulette_enabled || false;
+        document.getElementById('rouletteFieldsContainer').classList.toggle('hidden', !(form.roulette_enabled || false));
+        
+        for (let i = 1; i <= 6; i++) {
+            const prizeInput = document.getElementById('editPrize' + i);
+            if (prizeInput) prizeInput.value = form['prize' + i] || '';
+        }
         
         currentGroupToken = form.group_token || ''; 
         if (currentGroupToken) {
@@ -978,6 +985,13 @@
             fields: currentFields,
             group_token: currentGroupToken,
             admin_vk_ids: document.getElementById('editAdminIds').value.trim(), // <-- добавили запятую здесь
+            roulette_enabled: document.getElementById('editEnableRoulette').checked,
+            prize1: document.getElementById('editPrize1').value.trim(),
+            prize2: document.getElementById('editPrize2').value.trim(),
+            prize3: document.getElementById('editPrize3').value.trim(),
+            prize4: document.getElementById('editPrize4').value.trim(),
+            prize5: document.getElementById('editPrize5').value.trim(),
+            prize6: document.getElementById('editPrize6').value.trim(),
             success_title: document.getElementById('editSuccessTitle').value.trim(),
             success_desc: document.getElementById('editSuccessDesc').value.trim(),
             success_btn_text: document.getElementById('editSuccessBtnText').value.trim(),
@@ -1125,6 +1139,97 @@
         document.getElementById('adminView').classList.remove('hidden');
     }
 
+    function showRouletteScreen(data) {
+        hideAll();
+        document.getElementById('rouletteModal').classList.remove('hidden');
+
+        const wheel = document.getElementById('rouletteWheel');
+        wheel.innerHTML = '';
+        wheel.style.transform = `rotate(0deg)`; // Сброс позиции
+        
+        // Получаем призы или ставим дефолтные, если админ не заполнил
+        const prizes = [
+            data.prize1 || 'Скидка 5%', data.prize2 || 'Утешительный приз', data.prize3 || 'Бесплатная доставка',
+            data.prize4 || 'Подарок к заказу', data.prize5 || 'Скидка 10%', data.prize6 || 'Купон на 500₽'
+        ];
+
+        // Отрисовка текста на секторах колеса
+        prizes.forEach((prize, i) => {
+            const label = document.createElement('div');
+            label.className = 'roulette-label';
+            // Поворот: 60 градусов на сектор (360/6). Плюс 30 градусов, чтобы текст был ровно по центру сектора
+            label.style.transform = `rotate(${i * 60 + 30}deg)`; 
+            label.innerText = prize;
+            wheel.appendChild(label);
+        });
+
+        const spinBtn = document.getElementById('spinBtn');
+        const resultDiv = document.getElementById('rouletteResult');
+        const closeBtn = document.getElementById('rouletteCloseBtn');
+        
+        // Скрываем прошлые результаты, если это повторное открытие предпросмотра
+        resultDiv.classList.add('hidden');
+        closeBtn.classList.add('hidden');
+        spinBtn.classList.remove('hidden');
+        spinBtn.disabled = false;
+        spinBtn.innerText = '🎰 Крутить колесо!';
+
+        // 🛡 ЗАЩИТА ОТ ЧИТЕРОВ (localStorage)
+        // Если человек перезагрузит страницу, браузер все равно будет помнить, что он уже крутил
+        const cheatKey = 'spin_' + data.form_id;
+        if (localStorage.getItem(cheatKey)) {
+            spinBtn.disabled = true;
+            spinBtn.innerText = 'Вы уже использовали свою попытку!';
+            closeBtn.classList.remove('hidden');
+            return;
+        }
+
+        spinBtn.onclick = () => {
+            spinBtn.disabled = true;
+            spinBtn.innerText = 'Крутится...';
+            
+            // Ставим метку сразу! Если пользователь попытается обновить страницу во время вращения, попытка сгорит
+            localStorage.setItem(cheatKey, 'true'); 
+
+            // Рандомный сектор (от 0 до 5)
+            const randomSector = Math.floor(Math.random() * 6);
+            const prizeText = prizes[randomSector];
+
+            // Математика поворота: 5 полных оборотов (1800 градусов) + доворот до нужного сектора
+            const spinDegrees = 1800 + (360 - (randomSector * 60) - 30); 
+
+            wheel.style.transform = `rotate(${spinDegrees}deg)`;
+
+            // Ждем 4 секунды (время CSS анимации), затем выдаем приз
+            setTimeout(() => {
+                resultDiv.innerText = `🎁 Вы выиграли: ${prizeText}`;
+                resultDiv.classList.remove('hidden');
+                closeBtn.classList.remove('hidden');
+                spinBtn.classList.add('hidden');
+
+                // Моментально отправляем уведомление админу в ВК с выигрышем!
+                if (data.group_token && data.admin_vk_ids) {
+                    let vkText = `🎰 Пользователь покрутил Колесо Фортуны!\nФорма: ${data.title || 'Без названия'}\n\n🎁 Выигрыш: ${prizeText}`;
+                    if (currentUserProfile && currentUserProfile.id) {
+                        vkText += `\n👤 Клиент: https://vk.com/id${currentUserProfile.id}`;
+                    }
+                    const adminIds = data.admin_vk_ids.split(',').map(id => id.trim()).filter(id => id);
+                    for (let adminId of adminIds) {
+                        fetch('/api/vk-message', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ token: data.group_token, admin_id: adminId, text: vkText })
+                        }).catch(e => console.error(e));
+                    }
+                }
+            }, 4000); 
+        };
+
+        closeBtn.onclick = () => {
+            vkBridge.send('VKWebAppClose', {'status': 'success'});
+        };
+    }
+    
     function renderClientForm(data, isPreview = false) {
 
     // === ЗАПУСК ЛОВЦА ЛИДОВ (НОВЫЙ КОД) ===
@@ -1413,7 +1518,11 @@
                 }
                 // === КОНЕЦ НОВОГО БЛОКА ===
                                                                 
-                showSuccessScreen();
+                if (isUserPro && data.roulette_enabled && !isPreview) {
+                    showRouletteScreen(data);
+                } else {
+                    showSuccessScreen();
+                }
 
             } catch (err) {
                 showNotify('Произошла ошибка сети. Попробуйте еще раз.', true); 
