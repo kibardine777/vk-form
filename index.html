@@ -852,7 +852,8 @@
         btn.innerText = '⏳ Собираем...';
         btn.disabled = true;
 
-        fetch(`/api/export-leads?gid=${gid}&form_id=${formId}`)
+        // Добавляем launch_params к запросу для верификации прав
+        fetch(`/api/export-leads?gid=${gid}&form_id=${formId}&launch_params=${encodeURIComponent(cleanSearch.substring(1))}`)
         .then(async res => {
             if (!res.ok) {
                 const err = await res.json();
@@ -1578,7 +1579,8 @@
                                 vk_group_id: gid, 
                                 form_id: data.form_id,
                                 client_id: params.get('vk_user_id'),
-                                data: dbData 
+                                data: dbData,
+                                launch_params: cleanSearch.substring(1) // <-- ПЕРЕДАЕМ ПОДПИСЬ
                             })
                         });
                     } catch (dbErr) {
