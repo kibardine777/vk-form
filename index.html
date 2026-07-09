@@ -86,11 +86,25 @@
             border-top: 34px solid #FF3B30; z-index: 10; filter: drop-shadow(0 4px 5px rgba(0,0,0,0.3)); 
         }
         .roulette-label {
-            position: absolute; width: 50%; height: 40px; top: calc(50% - 20px); left: 50%;
-            transform-origin: 0% 50%; color: #fff; font-size: 12px; font-weight: 700;
-            display: flex; align-items: center; justify-content: flex-end; /* Прижимаем текст к краю колеса */
-            padding-right: 18px; box-sizing: border-box; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-            line-height: 1.15; text-align: right;
+            position: absolute; 
+            width: 50%; 
+            height: 60px; /* Увеличили высоту, чтобы влезло несколько строк */
+            top: calc(50% - 30px); 
+            left: 50%;
+            transform-origin: 0% 50%; 
+            color: #fff; 
+            font-size: 11px; /* Чуть уменьшили шрифт для элегантности */
+            font-weight: 700;
+            display: flex; 
+            align-items: center; 
+            justify-content: flex-end; 
+            padding-left: 35px; /* БРОНЯ ОТ ЦЕНТРА: текст ближе этой линии не подойдет */
+            padding-right: 15px; /* Отступ от внешнего края ободка */
+            box-sizing: border-box; 
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+            line-height: 1.25; 
+            text-align: right;
+            word-wrap: break-word; /* Разрешаем перенос длинных слов */
         }
     </style>
 </head>
