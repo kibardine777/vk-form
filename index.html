@@ -62,6 +62,28 @@
         .toast-error { background: #FF3B30 !important; }
         
         .feature-list { text-align: left; font-size: 14px; color: #444; margin-bottom: 25px; line-height: 1.6; background: #F2F3F5; padding: 15px; border-radius: 12px; }
+    /* --- КОЛЕСО ФОРТУНЫ --- */
+        .roulette-wrapper { position: relative; width: 280px; height: 280px; margin: 20px auto; }
+        .roulette-wheel { 
+            width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--vk-blue); 
+            transition: transform 4s cubic-bezier(0.1, 0.7, 0.1, 1); overflow: hidden; position: relative; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            /* Красим сектора в разные цвета */
+            background: conic-gradient(
+                #FF5C5C 0 60deg, #4BB34B 60deg 120deg, #2787F5 120deg 180deg, 
+                #FFB732 180deg 240deg, #9C56DF 240deg 300deg, #FF5C5C 300deg 360deg /* Замыкаем красным, но можно другой */
+            );
+        }
+        .roulette-pointer { 
+            position: absolute; top: -15px; left: 50%; transform: translateX(-50%); 
+            width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; 
+            border-top: 30px solid #FF3B30; z-index: 10; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); 
+        }
+        .roulette-label {
+            position: absolute; width: 50%; height: 20px; top: calc(50% - 10px); left: 50%;
+            transform-origin: 0% 50%; color: #fff; font-size: 13px; font-weight: 600;
+            display: flex; align-items: center; padding-left: 15px; box-sizing: border-box; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
@@ -122,7 +144,7 @@
             </div>
             
             <p style="margin: 0 0 20px 0; font-size: 13px; color: #a1a6b0; line-height: 1.5;">
-                Снимите ограничения бесплатной версии. Получите доступ к умному <b>«Ловцу лидов»</b> , выгрузке заявок в Excel и редактированию собственного экрана благодарности.
+                Снимите ограничения бесплатной версии. Получите доступ к умному <b>«Ловцу лидов»</b>, выгрузке заявок в Excel и редактированию собственного экрана благодарности.
             </p>
 
             <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -206,6 +228,19 @@
             
     <div id="proSuccessLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
         ⭐ Свой экран благодарности доступен на тарифе <b>PRO</b>
+        <label style="display: flex; align-items: flex-start; cursor: pointer; font-weight: normal; margin-bottom: 15px;">
+        <input type="checkbox" id="editEnableRoulette" style="width: 20px; height: 20px; margin-right: 10px; margin-top: 2px;">
+        <span style="font-size: 14px; line-height: 1.4;"><b>Включить «Колесо Фортуны»</b> вместо обычного экрана благодарности.</span>
+    </label>
+    
+    <div id="rouletteFieldsContainer" class="hidden" style="margin-bottom: 15px; padding: 15px; background: #F2F3F5; border-radius: 10px; border: 1px dashed #5181b8;">
+        <label>Укажите 6 вариантов призов (сектора колеса):</label>
+        <input type="text" id="editPrize1" placeholder="1. Скидка 10%" maxlength="30" style="margin-bottom: 8px;">
+        <input type="text" id="editPrize2" placeholder="2. Ничего страшного, повезет в любви" maxlength="30" style="margin-bottom: 8px;">
+        <input type="text" id="editPrize3" placeholder="3. Бесплатная доставка" maxlength="30" style="margin-bottom: 8px;">
+        <input type="text" id="editPrize4" placeholder="4. Подарок к заказу" maxlength="30" style="margin-bottom: 8px;">
+        <input type="text" id="editPrize5" placeholder="5. Скидка 5%" maxlength="30" style="margin-bottom: 8px;">
+        <input type="text" id="editPrize6" placeholder="6. Купон на 1000₽" maxlength="30" style="margin-bottom: 0;">
     </div>
     
     <div id="successFieldsContainer">
@@ -240,6 +275,23 @@
     </div>
 </div>
 
+<div id="rouletteModal" class="container hidden" style="margin: auto; padding: 30px 20px; text-align: center;">
+    <h2 id="rouletteTitle" style="text-align: center !important; color: var(--vk-blue); font-size: 22px; margin-bottom: 10px;">Испытайте удачу!</h2>
+    <p class="desc" style="text-align: center !important; font-size: 14px;">Крутите колесо, чтобы получить бонус к вашей заявке.</p>
+    
+    <div class="roulette-wrapper">
+        <div class="roulette-pointer"></div>
+        <div class="roulette-wheel" id="rouletteWheel">
+            <!-- Сектора будут добавляться через JavaScript -->
+        </div>
+    </div>
+    
+    <button id="spinBtn" class="btn-main" style="margin-top: 20px; font-size: 18px; padding: 16px;">🎰 Крутить колесо!</button>
+    <div id="rouletteResult" class="hidden" style="margin-top: 15px; font-size: 16px; font-weight: bold; color: #4BB34B;"></div>
+    
+    <button id="rouletteCloseBtn" class="btn-add hidden" style="margin-top: 15px;">Понятно, вернуться в группу</button>
+</div>
+    
 <div id="successModal" class="container hidden" style="margin: auto; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
     <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
     <h2 id="successTitle" style="text-align: center !important; color: var(--vk-blue); font-size: 24px; margin-bottom: 15px; width: 100%;">Спасибо!</h2>
