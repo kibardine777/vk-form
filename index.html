@@ -228,7 +228,9 @@
             
     <div id="proSuccessLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
         ⭐ Свой экран благодарности доступен на тарифе <b>PRO</b>
-        <label style="display: flex; align-items: flex-start; cursor: pointer; font-weight: normal; margin-bottom: 15px;">
+    </div> <!-- ВОТ ЗДЕСЬ МЫ ВЕРНУЛИ ЗАКРЫВАЮЩИЙ ТЕГ -->
+    
+    <label style="display: flex; align-items: flex-start; cursor: pointer; font-weight: normal; margin-bottom: 15px;">
         <input type="checkbox" id="editEnableRoulette" onchange="document.getElementById('rouletteFieldsContainer').classList.toggle('hidden', !this.checked)" style="width: 20px; height: 20px; margin-right: 10px; margin-top: 2px;">
         <span style="font-size: 14px; line-height: 1.4;"><b>Включить «Колесо Фортуны»</b> вместо обычного экрана благодарности.</span>
     </label>
