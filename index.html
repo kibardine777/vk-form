@@ -1467,7 +1467,11 @@
             if (directBtn) {
                 directBtn.onclick = (e) => {
                     e.preventDefault();
-                    showSuccessScreen();
+                    if (isUserPro && data.roulette_enabled) {
+                        showRouletteScreen(data, isPreview);
+                    } else {
+                        showSuccessScreen();
+                    }
                 };
             }
         }
@@ -1489,7 +1493,11 @@
             }
 
             if (isPreview) { 
-                showSuccessScreen();
+                if (isUserPro && data.roulette_enabled) {
+                    showRouletteScreen(data, isPreview);
+                } else {
+                    showSuccessScreen();
+                }
                 return; 
             }
 
