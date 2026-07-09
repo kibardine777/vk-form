@@ -190,10 +190,25 @@ app.post('/api/upload', async (req, res) => {
 
 // 1. Тихое сохранение новой заявки в базу (и отмена таймера упущенного лида)
 app.post('/api/submit-lead', async (req, res) => {
-    const { vk_group_id, form_id, client_id, data } = req.body;
-    if (!vk_group_id || !form_id || !data) return res.status(400).json({ error: 'Bad data' });
+    const { vk_group_id, form_id, client_id, data, launch_params } = req.body;
+    if (!vk_group_id || !form_id || !data || !launch_params) return res.status(400).json({ error: 'Bad data' });
     
     try {
+        // Защита от спам-ботов: проверяем, что запрос пришел реально из окна ВК
+        const urlParams = new URLSearchParams(launch_params);
+        const secret = process.env.VK_APP_SECRET;
+        const sign = urlParams.get('sign');
+        const queryParams = [];
+        for (const [key, value] of urlParams.entries()) {
+            if (key.startsWith('vk_')) queryParams.push({ key, value });
+        }
+        const queryString = queryParams.sort((a, b) => a.key.localeCompare(b.key)).map(({ key, value }) => `${key}=${encodeURIComponent(value)}`).join('&');
+        const paramsHash = crypto.createHmac('sha256', secret).update(queryString).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=$/, '');
+
+        if (paramsHash !== sign) {
+            return res.status(403).json({ error: 'Неверная подпись ВК' });
+        }
+
         // Отменяем таймер Ловца лидов, так как человек всё-таки отправил заявку!
         if (client_id) {
             const timerKey = `${vk_group_id}_${form_id}_${client_id}`;
@@ -243,11 +258,31 @@ app.post('/api/track-open', (req, res) => {
     res.status(200).json({ success: true });
 });
 
-// 2. Скачивание заявок в CSV (Только для PRO)
+// 2. Скачивание заявок в CSV (Только для PRO + Защита)
 app.get('/api/export-leads', async (req, res) => {
-    const { gid, form_id } = req.query;
+    const { gid, form_id, launch_params } = req.query;
 
     try {
+        // Проверка подписи: скачивать может только администратор группы
+        if (!launch_params) return res.status(403).json({ error: 'Нет подписи' });
+        const urlParams = new URLSearchParams(launch_params);
+        const secret = process.env.VK_APP_SECRET;
+        const sign = urlParams.get('sign');
+        const queryParams = [];
+        for (const [key, value] of urlParams.entries()) {
+            if (key.startsWith('vk_')) queryParams.push({ key, value });
+        }
+        const queryString = queryParams.sort((a, b) => a.key.localeCompare(b.key)).map(({ key, value }) => `${key}=${encodeURIComponent(value)}`).join('&');
+        const paramsHash = crypto.createHmac('sha256', secret).update(queryString).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=$/, '');
+
+        if (paramsHash !== sign) return res.status(403).json({ error: 'Неверная подпись' });
+
+        const role = urlParams.get('vk_viewer_group_role');
+        const isOwner = urlParams.get('vk_viewer_id') === '52069477';
+        if (role !== 'admin' && role !== 'editor' && !isOwner) {
+            return res.status(403).json({ error: 'Нет прав' });
+        }
+
         // Проверка тарифа PRO (серверная защита)
         const checkPro = await pool.query('SELECT is_pro, pro_expires_at FROM forms WHERE vk_group_id = $1', [gid]);
         let isPro = false;
@@ -269,7 +304,6 @@ app.get('/api/export-leads', async (req, res) => {
             return res.status(404).json({ error: 'В этой форме еще нет заявок.' });
         }
 
-        // Вытаскиваем все названия полей (вопросов)
         let allKeys = new Set();
         leads.rows.forEach(row => {
             Object.keys(row.data).forEach(k => allKeys.add(k));
@@ -277,18 +311,23 @@ app.get('/api/export-leads', async (req, res) => {
         
         const headers = ['Дата', ...Array.from(allKeys)];
         
-        // Магия для Excel: спецификатор BOM (\uFEFF) и разделитель (;)
         let csvContent = '\uFEFF'; 
         csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
 
         leads.rows.forEach(row => {
             const dateObj = new Date(row.created_at);
-            const dateStr = dateObj.toLocaleString('ru-RU'); // Формат: ДД.ММ.ГГГГ, ЧЧ:ММ
+            const dateStr = dateObj.toLocaleString('ru-RU'); 
             
             const rowData = [dateStr];
             Array.from(allKeys).forEach(key => {
                 let val = row.data[key] || '';
-                val = String(val).replace(/"/g, '""'); // Экранируем кавычки на всякий случай
+                val = String(val).replace(/"/g, '""'); 
+                
+                // ЗАЩИТА ОТ CSV-ИНЪЕКЦИЙ (Блокируем исполняемый код в Excel)
+                if (/^[=+\-@\t\r]/.test(val)) {
+                    val = "'" + val;
+                }
+                
                 rowData.push(`"${val}"`);
             });
             csvContent += rowData.join(';') + '\n';
