@@ -62,27 +62,35 @@
         .toast-error { background: #FF3B30 !important; }
         
         .feature-list { text-align: left; font-size: 14px; color: #444; margin-bottom: 25px; line-height: 1.6; background: #F2F3F5; padding: 15px; border-radius: 12px; }
-    /* --- КОЛЕСО ФОРТУНЫ --- */
+    /* --- КОЛЕСО ФОРТУНЫ (ОБНОВЛЕННЫЙ ДИЗАЙН) --- */
         .roulette-wrapper { position: relative; width: 280px; height: 280px; margin: 20px auto; }
         .roulette-wheel { 
-            width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--vk-blue); 
+            width: 100%; height: 100%; border-radius: 50%; 
+            border: 6px solid #fff; /* Белая премиальная рамка */
             transition: transform 4s cubic-bezier(0.1, 0.7, 0.1, 1); overflow: hidden; position: relative; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            /* Красим сектора в разные цвета */
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15); /* Объемная тень */
+            /* Чередование 3-х стильных цветов вместо радуги */
             background: conic-gradient(
-                #FF5C5C 0 60deg, #4BB34B 60deg 120deg, #2787F5 120deg 180deg, 
-                #FFB732 180deg 240deg, #9C56DF 240deg 300deg, #FF5C5C 300deg 360deg /* Замыкаем красным, но можно другой */
+                #2787F5 0 60deg, #4BB34B 60deg 120deg, #FF9F0A 120deg 180deg, 
+                #2787F5 180deg 240deg, #4BB34B 240deg 300deg, #FF9F0A 300deg 360deg
             );
         }
+        /* Внутреннее разделение секторов для эстетики */
+        .roulette-wheel::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); pointer-events: none;
+        }
         .roulette-pointer { 
-            position: absolute; top: -15px; left: 50%; transform: translateX(-50%); 
-            width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; 
-            border-top: 30px solid #FF3B30; z-index: 10; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); 
+            position: absolute; top: -18px; left: 50%; transform: translateX(-50%); 
+            width: 0; height: 0; border-left: 16px solid transparent; border-right: 16px solid transparent; 
+            border-top: 34px solid #FF3B30; z-index: 10; filter: drop-shadow(0 4px 5px rgba(0,0,0,0.3)); 
         }
         .roulette-label {
-            position: absolute; width: 50%; height: 20px; top: calc(50% - 10px); left: 50%;
-            transform-origin: 0% 50%; color: #fff; font-size: 13px; font-weight: 600;
-            display: flex; align-items: center; padding-left: 15px; box-sizing: border-box; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            position: absolute; width: 50%; height: 40px; top: calc(50% - 20px); left: 50%;
+            transform-origin: 0% 50%; color: #fff; font-size: 12px; font-weight: 700;
+            display: flex; align-items: center; justify-content: flex-end; /* Прижимаем текст к краю колеса */
+            padding-right: 18px; box-sizing: border-box; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+            line-height: 1.15; text-align: right;
         }
     </style>
 </head>
@@ -236,13 +244,15 @@
     </label>
     
     <div id="rouletteFieldsContainer" class="hidden" style="margin-bottom: 15px; padding: 15px; background: #F2F3F5; border-radius: 10px; border: 1px dashed #5181b8;">
-        <label>Укажите 6 вариантов призов (сектора колеса):</label>
-        <input type="text" id="editPrize1" placeholder="1. Скидка 10%" maxlength="30" style="margin-bottom: 8px;">
-        <input type="text" id="editPrize2" placeholder="2. Ничего страшного, повезет в любви" maxlength="30" style="margin-bottom: 8px;">
-        <input type="text" id="editPrize3" placeholder="3. Бесплатная доставка" maxlength="30" style="margin-bottom: 8px;">
-        <input type="text" id="editPrize4" placeholder="4. Подарок к заказу" maxlength="30" style="margin-bottom: 8px;">
-        <input type="text" id="editPrize5" placeholder="5. Скидка 5%" maxlength="30" style="margin-bottom: 8px;">
-        <input type="text" id="editPrize6" placeholder="6. Купон на 1000₽" maxlength="30" style="margin-bottom: 0;">
+        <label>Укажите 6 призов (вероятность выигрыша настроена автоматически):</label>
+        <div style="font-size: 12px; color: #818C99; margin-bottom: 12px; line-height: 1.4;">Распределите призы от самого редкого и ценного (сверху) к самому частому и базовому (снизу).</div>
+        
+        <input type="text" id="editPrize1" placeholder="1. Супер-приз (Шанс: 5%)" maxlength="30" style="margin-bottom: 8px; border-left: 4px solid #FF3B30;">
+        <input type="text" id="editPrize2" placeholder="2. Ценный приз (Шанс: 10%)" maxlength="30" style="margin-bottom: 8px; border-left: 4px solid #FF9F0A;">
+        <input type="text" id="editPrize3" placeholder="3. Хороший бонус (Шанс: 20%)" maxlength="30" style="margin-bottom: 8px; border-left: 4px solid #4BB34B;">
+        <input type="text" id="editPrize4" placeholder="4. Хороший бонус (Шанс: 20%)" maxlength="30" style="margin-bottom: 8px; border-left: 4px solid #4BB34B;">
+        <input type="text" id="editPrize5" placeholder="5. Обычная скидка (Шанс: 20%)" maxlength="30" style="margin-bottom: 8px; border-left: 4px solid #2787F5;">
+        <input type="text" id="editPrize6" placeholder="6. Базовый / Утешительный (Шанс: 25%)" maxlength="30" style="margin-bottom: 0; border-left: 4px solid #2787F5;">
     </div>
     
     <div id="successFieldsContainer">
@@ -1176,25 +1186,48 @@
         spinBtn.disabled = false;
         spinBtn.innerText = '🎰 Крутить колесо!';
 
-        // 🛡 ЗАЩИТА ОТ ЧИТЕРОВ (localStorage)
-        // Если человек перезагрузит страницу, браузер все равно будет помнить, что он уже крутил
+        // 🛡 ЗАЩИТА ОТ ЧИТЕРОВ И УМНЫЙ ТАЙМЕР НА 24 ЧАСА (localStorage)
         const cheatKey = 'spin_' + data.form_id;
-        if (localStorage.getItem(cheatKey)) {
-            spinBtn.disabled = true;
-            spinBtn.innerText = 'Вы уже использовали свою попытку!';
-            closeBtn.classList.remove('hidden');
-            return;
+        const lastSpinTime = localStorage.getItem(cheatKey);
+        const COOLDOWN_HOURS = 24;
+
+        if (lastSpinTime) {
+            const hoursPassed = (Date.now() - parseInt(lastSpinTime)) / (1000 * 60 * 60);
+            if (hoursPassed < COOLDOWN_HOURS) {
+                const hoursLeft = Math.ceil(COOLDOWN_HOURS - hoursPassed);
+                spinBtn.disabled = true;
+                // Меняем текст кнопки на таймер
+                spinBtn.innerText = `Следующая попытка через ${hoursLeft} ч.`; 
+                closeBtn.classList.remove('hidden');
+                return;
+            }
         }
 
         spinBtn.onclick = () => {
             spinBtn.disabled = true;
             spinBtn.innerText = 'Крутится...';
             
-            // Ставим метку сразу! Если пользователь попытается обновить страницу во время вращения, попытка сгорит
-            localStorage.setItem(cheatKey, 'true'); 
+            // Записываем точное время прокрутки в миллисекундах!
+            localStorage.setItem(cheatKey, Date.now().toString()); 
 
             // Рандомный сектор (от 0 до 5)
-            const randomSector = Math.floor(Math.random() * 6);
+            // Рандомный сектор с учетом математической вероятности (веса)
+            const rand = Math.random() * 100;
+            let randomSector = 5; // По умолчанию сектор 6 (25%)
+            
+            if (rand < 5) {
+                randomSector = 0; // Сектор 1 (Шанс 5%)
+            } else if (rand < 15) {
+                randomSector = 1; // Сектор 2 (Шанс 10%: от 5 до 15)
+            } else if (rand < 35) {
+                randomSector = 2; // Сектор 3 (Шанс 20%: от 15 до 35)
+            } else if (rand < 55) {
+                randomSector = 3; // Сектор 4 (Шанс 20%: от 35 до 55)
+            } else if (rand < 75) {
+                randomSector = 4; // Сектор 5 (Шанс 20%: от 55 до 75)
+            } else {
+                randomSector = 5; // Сектор 6 (Шанс 25%: от 75 до 100)
+            }
             const prizeText = prizes[randomSector];
 
             // Математика поворота: 5 полных оборотов (1800 градусов) + доворот до нужного сектора
