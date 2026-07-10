@@ -726,9 +726,9 @@
                     return d + ' дней';
                 };
                 
-                // Если осталось 3 дня или меньше — показываем кнопку
+                // Если осталось 3 дня или меньше — показываем кнопку и при клике открываем тарифы
                 let extendBtn = (diffDays <= 3) ? 
-                    `<br><button onclick="document.getElementById('promoBlock').scrollIntoView({behavior: 'smooth'})" style="background:none; border:1px solid #4bb34b; color:#4bb34b; border-radius:15px; padding:4px 12px; font-size:12px; cursor:pointer; margin-top:8px;">Продлить тариф</button>` 
+                    `<br><button onclick="document.getElementById('promoBlock').classList.remove('hidden'); document.getElementById('promoBlock').scrollIntoView({behavior: 'smooth'})" style="background:none; border:1px solid #4bb34b; color:#4bb34b; border-radius:15px; padding:4px 12px; font-size:12px; cursor:pointer; margin-top:8px;">Продлить тариф</button>` 
                     : '';
 
                 if (diffDays > 0) {
