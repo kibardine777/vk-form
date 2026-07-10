@@ -509,6 +509,37 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Фоновая проверка PRO-тарифов раз в сутки
+setInterval(async () => {
+    try {
+        const expiring = await pool.query(`
+            SELECT vk_group_id, pro_expires_at, fields 
+            FROM forms 
+            WHERE is_pro = true 
+            AND pro_expires_at > CURRENT_DATE 
+            AND pro_expires_at <= CURRENT_DATE + INTERVAL '3 days'
+        `);
+
+        for (const row of expiring.rows) {
+            const adminIds = row.fields[0]?.admin_vk_ids;
+            if (!adminIds) continue;
+
+            let token = null;
+            for (let f of row.fields) {
+                if (f.group_token) { token = f.group_token; break; }
+            }
+            if (!token) continue;
+
+            const msg = `⚠️ Внимание! Ваш тариф PRO истекает через 3 дня или раньше. Успейте продлить, чтобы не потерять доступ к премиум-функциям!`;
+            
+            const ids = adminIds.split(',').map(id => id.trim());
+            for (const id of ids) {
+                await fetch(`https://api.vk.com/method/messages.send?user_id=${id}&message=${encodeURIComponent(msg)}&random_id=${Math.random()}&v=5.131&access_token=${token}`);
+            }
+        }
+    } catch (e) { console.error('Ошибка фонового уведомления:', e); }
+}, 24 * 60 * 60 * 1000); // Интервал: 24 часа
+
 app.listen(port, '0.0.0.0', () => {
     console.log('==============================');
     console.log(`Сервер запущен на порту ${port}`);
