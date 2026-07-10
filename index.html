@@ -714,12 +714,10 @@
             
             const badge = document.getElementById('proBadge');
             
-            // Если дата есть, считаем остаток дней
             if (proExpiresAt) {
                 const diffTime = new Date(proExpiresAt) - new Date();
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
-                // Функция для правильного окончания слов
                 const getDaysText = (d) => {
                     let last = d % 10, lastTwo = d % 100;
                     if (lastTwo >= 11 && lastTwo <= 19) return d + ' дней';
@@ -728,11 +726,17 @@
                     return d + ' дней';
                 };
                 
+                // Если осталось 3 дня или меньше — показываем кнопку
+                let extendBtn = (diffDays <= 3) ? 
+                    `<br><button onclick="document.getElementById('promoBlock').scrollIntoView({behavior: 'smooth'})" style="background:none; border:1px solid #4bb34b; color:#4bb34b; border-radius:15px; padding:4px 12px; font-size:12px; cursor:pointer; margin-top:8px;">Продлить тариф</button>` 
+                    : '';
+
                 if (diffDays > 0) {
-                    badge.innerHTML = `⭐ У вас активен тариф PRO <br><span style="color: #818C99; font-weight: normal; font-size: 12px; margin-top: 4px; display: inline-block;">Осталось: ${getDaysText(diffDays)}</span>`;
+                    badge.innerHTML = `⭐ У вас активен тариф PRO <br><span style="color: #818C99; font-weight: normal; font-size: 12px; margin-top: 4px; display: inline-block;">Осталось: ${getDaysText(diffDays)}</span>${extendBtn}`;
+                } else {
+                    badge.innerHTML = `⭐ Тариф PRO истек! <br>${extendBtn}`;
                 }
             } else {
-                // Если даты нет (выдали навсегда вручную)
                 badge.innerHTML = `⭐ У вас активен тариф PRO <br><span style="color: #818C99; font-weight: normal; font-size: 12px; margin-top: 4px; display: inline-block;">Безлимитный доступ</span>`;
             }
             
