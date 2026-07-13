@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const nodemailer = require('nodemailer');
 
 const app = express();
 // Хранилище таймеров для "Ловца лидов"
@@ -21,6 +22,19 @@ const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
         rejectUnauthorized: false // Включаем обязательное шифрование для публичного IP
+    }
+});
+
+// ==========================================
+// Настройка почты (Яндекс)
+// ==========================================
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.yandex.ru',
+    port: process.env.SMTP_PORT || 465,
+    secure: true,
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
     }
 });
 
@@ -205,13 +219,13 @@ app.post('/api/upload', async (req, res) => {
 // ВЫГРУЗКА И СОХРАНЕНИЕ ЗАЯВОК (CRM)
 // ==========================================
 
-// 1. Тихое сохранение новой заявки в базу (и отмена таймера упущенного лида)
+// 1. Тихое сохранение новой заявки в базу, отмена таймера и отправка писем
 app.post('/api/submit-lead', async (req, res) => {
-    const { vk_group_id, form_id, client_id, data, launch_params } = req.body;
+    const { vk_group_id, form_id, client_id, data, launch_params, notify_emails, form_title } = req.body;
     if (!vk_group_id || !form_id || !data || !launch_params) return res.status(400).json({ error: 'Bad data' });
     
     try {
-        // Защита от спам-ботов: проверяем, что запрос пришел реально из окна ВК
+        // Защита от спам-ботов
         const urlParams = new URLSearchParams(launch_params);
         const secret = process.env.VK_APP_SECRET;
         const sign = urlParams.get('sign');
@@ -226,7 +240,7 @@ app.post('/api/submit-lead', async (req, res) => {
             return res.status(403).json({ error: 'Неверная подпись ВК' });
         }
 
-        // Отменяем таймер Ловца лидов, так как человек всё-таки отправил заявку!
+        // Отменяем таймер Ловца лидов
         if (client_id) {
             const timerKey = `${vk_group_id}_${form_id}_${client_id}`;
             if (abandonedTimers.has(timerKey)) {
@@ -235,10 +249,35 @@ app.post('/api/submit-lead', async (req, res) => {
             }
         }
 
+        // Сохраняем в базу для Excel
         await pool.query(
             'INSERT INTO leads (vk_group_id, form_id, data) VALUES ($1, $2, $3)',
             [vk_group_id, form_id, JSON.stringify(data)]
         );
+
+        // === ОТПРАВКА НА ПОЧТУ ===
+        if (notify_emails) {
+            const emails = notify_emails.split(',').map(e => e.trim()).filter(e => e);
+            if (emails.length > 0) {
+                let emailText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${form_title || 'Заявка'}\n\n`;
+                if (client_id) {
+                    emailText += `👤 Отправитель: https://vk.com/id${client_id}\n\n`;
+                }
+                for (let [key, value] of Object.entries(data)) {
+                    emailText += `🔸 ${key}: ${value}\n`;
+                }
+
+                for (let email of emails) {
+                    transporter.sendMail({
+                        from: process.env.SMTP_USER,
+                        to: email,
+                        subject: `Лид: ${form_title || 'Заявка'}`,
+                        text: emailText
+                    }).catch(err => console.error(`Ошибка отправки письма на ${email}:`, err));
+                }
+            }
+        }
+
         res.status(200).json({ success: true });
     } catch (err) {
         console.error('Ошибка сохранения лида:', err);
