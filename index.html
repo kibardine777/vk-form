@@ -1507,16 +1507,28 @@
 
             btn.disabled = true; btn.innerText = 'Отправка...';
             
+            const formDataObj = {};
+            formDataObj["Форма (суть заявки)"] = data.title || "Заявка";
+            const formData = new FormData(form);
+            
+            for (let [key, value] of formData.entries()) {
+                const allValues = formData.getAll(key);
+                if (allValues.length > 1) {
+                    formDataObj[key] = allValues.join(', ');
+                } else {
+                    formDataObj[key] = value;
+                }
+            }
+            
             try {
+                // 1. Уведомление в личные сообщения ВК (админам)
                 if (data.admin_vk_ids) {
                     let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
-                    
                     if (currentUserProfile && currentUserProfile.id) {
                         vkText += `👤 Отправитель: https://vk.com/id${currentUserProfile.id}\n\n`;
                     }
-                    
                     for (let [key, value] of Object.entries(formDataObj)) {
-                        if (key !== 'access_key' && key !== 'from_name' && key !== 'subject' && key !== 'Форма (суть заявки)') {
+                        if (key !== 'Форма (суть заявки)') {
                             vkText += `🔸 ${key}: ${value}\n`;
                         }
                     }
@@ -1530,39 +1542,42 @@
                                 body: JSON.stringify({ vk_group_id: gid, admin_id: adminId, text: vkText, launch_params: cleanSearch.substring(1) })
                             });
                         } catch (vkErr) {
-                            console.error(`Ошибка отправки админу ${adminId}:`, vkErr);
+                            console.error(`Ошибка отправки ВК админу ${adminId}:`, vkErr);
                         }
                     }
                 }
-                                                                
-                // === НОВЫЙ БЛОК: СОХРАНЕНИЕ В БАЗУ ДАННЫХ ДЛЯ EXCEL ===
-                if (!isPreview) {
-                    try {
-                        const dbData = { ...formDataObj };
-                        // Удаляем служебные ключи, чтобы они не мусорили в Excel
-                        delete dbData['access_key'];
-                        delete dbData['from_name'];
-                        delete dbData['subject'];
-                        delete dbData['Форма (суть заявки)'];
+                
+                // 2. Отправка на почту и в базу (через наш бэкенд)
+                const dbData = { ...formDataObj };
+                delete dbData['Форма (суть заявки)'];
 
-                        // Отправляем на наш сервер (в базу + на почту)
-                        fetch('/api/submit-lead', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                vk_group_id: gid, 
-                                form_id: data.form_id,
-                                client_id: params.get('vk_user_id'),
-                                data: dbData,
-                                launch_params: cleanSearch.substring(1),
-                                notify_emails: data.web3forms_key, 
-                                form_title: data.title 
-                            })
-                        });
-                    } catch (dbErr) {
-                        console.error('Ошибка сохранения лида:', dbErr);
-                    }
+                await fetch('/api/submit-lead', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        vk_group_id: gid, 
+                        form_id: data.form_id,
+                        client_id: params.get('vk_user_id'),
+                        data: dbData,
+                        launch_params: cleanSearch.substring(1),
+                        notify_emails: data.web3forms_key, 
+                        form_title: data.title 
+                    })
+                });
+                
+                // 3. Экран успеха
+                if (isUserPro && data.roulette_enabled) {
+                    showRouletteScreen(data, isPreview);
+                } else {
+                    showSuccessScreen();
                 }
+
+            } catch (err) {
+                console.error("ОШИБКА ОТПРАВКИ:", err);
+                showNotify('Произошла ошибка сети. Попробуйте еще раз.', true); 
+                btn.disabled = false; btn.innerText = 'Отправить заявку';
+            }
+        };
                 // === КОНЕЦ НОВОГО БЛОКА ===
                                                                 
                 if (isUserPro && data.roulette_enabled) {
