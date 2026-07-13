@@ -1578,19 +1578,6 @@
                 btn.disabled = false; btn.innerText = 'Отправить заявку';
             }
         };
-                // === КОНЕЦ НОВОГО БЛОКА ===
-                                                                
-                if (isUserPro && data.roulette_enabled) {
-                    showRouletteScreen(data, isPreview);
-                } else {
-                    showSuccessScreen();
-                }
-
-            } catch (err) {
-                showNotify('Произошла ошибка сети. Попробуйте еще раз.', true); 
-                btn.disabled = false; btn.innerText = 'Отправить заявку';
-            }
-        };
     }
 
     function hideAll() {
