@@ -216,8 +216,8 @@
         <button type="button" class="btn-add" id="uploadBtn" style="margin: 0; width: auto; padding: 0 15px;" onclick="document.getElementById('fileUpload').click()">📁 Загрузить</button>
     </div>
     
-    <label>Ключ Web3Forms для отправки заявок на почту (Можно несколько через запятую):</label>
-    <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
+    <label>Email для получения заявок (Можно несколько через запятую):</label>
+    <input type="text" id="editKey" placeholder="Например: info@mail.ru, boss@yandex.ru" maxlength="300">
     
     <label>ID администраторов ВКонтакте (через запятую) <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editAdminIds" placeholder="Например: 52069477, 12345678" maxlength="300" onblur="cleanAdminIds(this)" style="margin-bottom: 6px;">
@@ -678,7 +678,7 @@
                     <ol style="margin-top:10px; padding-left:20px; line-height:1.5; color:#444;">
                         <li>Нажмите синюю кнопку создания формы.</li>
                         <li>Добавьте свои вопросы и настройте оформление.</li>
-                        <li>Укажите Email (ключ Web3Forms) или ID ВК, куда будут приходить заявки.</li>
+                        <li>Укажите Email или ID ВК, куда будут приходить заявки.</li>
                         <li>Сохраните форму и скопируйте ссылку для виджета!</li>
                     </ol>
                 </div>
@@ -1094,11 +1094,10 @@
 
         const keyInput = document.getElementById('editKey').value.trim();
         if (keyInput) {
-            const keys = keyInput.split(',').map(k => k.trim());
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            for (let k of keys) {
-                if (!uuidRegex.test(k)) {
-                    showNotify('Ошибка: Неверный формат ключа Web3Forms!', true);
+            const emails = keyInput.split(',').map(k => k.trim());
+            for (let e of emails) {
+                if (!e.includes('@') || !e.includes('.')) {
+                    showNotify('Ошибка: Неверный формат Email!', true);
                     document.getElementById('editKey').focus();
                     return;
                 }
@@ -1508,24 +1507,6 @@
 
             btn.disabled = true; btn.innerText = 'Отправка...';
             
-            const keys = (data.web3forms_key || '').split(',').map(k => k.trim()).filter(k => k);
-
-            const formDataObj = {};
-            formDataObj["Форма (суть заявки)"] = data.title || "Заявка";
-            const formData = new FormData(form);
-            
-            for (let [key, value] of formData.entries()) {
-                const allValues = formData.getAll(key);
-                if (allValues.length > 1) {
-                    formDataObj[key] = allValues.join(', ');
-                } else {
-                    formDataObj[key] = value;
-                }
-            }
-            
-            formDataObj["from_name"] = data.project_name || "Новая форма ВК";
-            formDataObj["subject"] = `Лид: ${data.title || 'Заявка'}`;
-                        
             try {
                 if (keys.length > 0) {
                     for (let key of keys) {
@@ -1575,7 +1556,7 @@
                         delete dbData['subject'];
                         delete dbData['Форма (суть заявки)'];
 
-                        // Отправляем асинхронно, не задерживая клиента
+                        // Отправляем на наш сервер (в базу + на почту)
                         fetch('/api/submit-lead', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1584,7 +1565,9 @@
                                 form_id: data.form_id,
                                 client_id: params.get('vk_user_id'),
                                 data: dbData,
-                                launch_params: cleanSearch.substring(1) // <-- ПЕРЕДАЕМ ПОДПИСЬ
+                                launch_params: cleanSearch.substring(1),
+                                notify_emails: data.web3forms_key, 
+                                form_title: data.title 
                             })
                         });
                     } catch (dbErr) {
