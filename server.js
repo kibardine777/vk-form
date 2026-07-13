@@ -30,8 +30,8 @@ const pool = new Pool({
 // ==========================================
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.yandex.ru',
-    port: 587, // Пробуем альтернативный порт Яндекса
-    secure: false, // Важно! Для 587 порта тут обязательно должно быть false (он шифрует иначе)
+    port: process.env.SMTP_PORT || 465, // Снова читаем порт из твоих переменных
+    secure: true, // Обязательно true для порта 465
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
