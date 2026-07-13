@@ -1508,17 +1508,6 @@
             btn.disabled = true; btn.innerText = 'Отправка...';
             
             try {
-                if (keys.length > 0) {
-                    for (let key of keys) {
-                        formDataObj["access_key"] = key;
-                        await fetch("https://api.web3forms.com/submit", {
-                            method: "POST", 
-                            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                            body: JSON.stringify(formDataObj) 
-                        });
-                    }
-                }
-                
                 if (data.admin_vk_ids) {
                     let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
                     
