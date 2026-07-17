@@ -928,6 +928,10 @@
         // --- Добавляем блокировку ловца ---
         const abLock = document.getElementById('proAbandonedLock');
         const abCheck = document.getElementById('editCatchAbandoned');
+
+        // --- Добавляем блокировку интеграций ---
+        const intLock = document.getElementById('proIntegrationsLock');
+        const intGrid = document.getElementById('integrationGrid');
         
         if (!isUserPro) {
             lockMsg.classList.remove('hidden');
@@ -938,6 +942,13 @@
             abLock.classList.remove('hidden');
             abCheck.disabled = true;
             abCheck.checked = false;
+
+            // Блокируем интеграции
+            if (intLock) intLock.classList.remove('hidden');
+            if (intGrid) {
+                intGrid.style.opacity = '0.5';
+                intGrid.style.pointerEvents = 'none';
+            }
         } else {
             lockMsg.classList.add('hidden');
             container.style.opacity = '1';
@@ -946,6 +957,13 @@
             
             abLock.classList.add('hidden');
             abCheck.disabled = false;
+
+            // Разблокируем интеграции
+            if (intLock) intLock.classList.add('hidden');
+            if (intGrid) {
+                intGrid.style.opacity = '1';
+                intGrid.style.pointerEvents = 'auto';
+            }
         }
     }
 
