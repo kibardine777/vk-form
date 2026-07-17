@@ -67,6 +67,102 @@ const s3 = new S3Client({
 const BUCKET_NAME = 'vk-forms-images';
 
 // ==========================================
+// ФОНОВАЯ ОБРАБОТКА ИНТЕГРАЦИЙ (CRM, Мессенджеры, Webhook)
+// ==========================================
+async function processIntegrations(leadData, formTitle, clientId, integrations) {
+    if (!integrations) return; // Если интеграций нет, просто выходим
+
+    // Формируем красивый текстовый шаблон для мессенджеров
+    let textMessage = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${formTitle || 'Заявка'}\n\n`;
+    if (clientId) textMessage += `👤 Отправитель: https://vk.com/id${clientId}\n\n`;
+    for (let [key, value] of Object.entries(leadData)) {
+        textMessage += `🔸 ${key}: ${value}\n`;
+    }
+
+    // 1. Webhook (Универсальная отправка)
+    if (integrations.webhook && integrations.webhook.enabled && integrations.webhook.target_url) {
+        fetch(integrations.webhook.target_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ form_title: formTitle, client_id: clientId, data: leadData })
+        }).catch(e => console.error('Ошибка Webhook:', e));
+    }
+
+    // 2. Telegram
+    if (integrations.telegram && integrations.telegram.enabled && integrations.telegram.bot_token && integrations.telegram.chat_id) {
+        const tgUrl = `https://api.telegram.org/bot${integrations.telegram.bot_token}/sendMessage`;
+        fetch(tgUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: integrations.telegram.chat_id, text: textMessage })
+        }).catch(e => console.error('Ошибка Telegram:', e));
+    }
+
+    // 3. Макс (Мессенджер)
+    if (integrations.max && integrations.max.enabled && integrations.max.bot_token && integrations.max.chat_id) {
+        // Используем новый домен api2, на который Макс переезжает в июле 2026 года
+        const maxUrl = `https://platform-api2.max.ru/messages`; 
+        fetch(maxUrl, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                // Токен в Максе передается прямо в заголовке Authorization
+                'Authorization': integrations.max.bot_token 
+            },
+            body: JSON.stringify({ 
+                // В зависимости от того, куда шлем, API принимает chat_id или user_id
+                chat_id: Number(integrations.max.chat_id), 
+                text: textMessage 
+            })
+        }).catch(e => console.error('Ошибка Макс:', e));
+    }
+
+    // 4. Битрикс24 (Создание лида через входящий вебхук)
+    if (integrations.bitrix24 && integrations.bitrix24.enabled && integrations.bitrix24.webhook_url) {
+        let b24Url = integrations.bitrix24.webhook_url;
+        if (!b24Url.endsWith('/')) b24Url += '/';
+        b24Url += 'crm.lead.add.json';
+
+        fetch(b24Url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fields: {
+                    TITLE: `Заявка: ${formTitle}`,
+                    NAME: leadData['Имя'] || 'Клиент ВК',
+                    PHONE: [{ "VALUE": leadData['Телефон'] || '', "VALUE_TYPE": "WORK" }],
+                    COMMENTS: textMessage
+                }
+            })
+        }).catch(e => console.error('Ошибка Битрикс24:', e));
+    }
+
+    // 5. amoCRM (Комплексное создание сделки + контакта)
+    if (integrations.amocrm && integrations.amocrm.enabled && integrations.amocrm.subdomain && integrations.amocrm.access_token) {
+        const amoUrl = `https://${integrations.amocrm.subdomain}.amocrm.ru/api/v4/leads/complex`;
+        fetch(amoUrl, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${integrations.amocrm.access_token}`
+            },
+            body: JSON.stringify([{
+                name: `Заявка: ${formTitle}`,
+                _embedded: {
+                    contacts: [{
+                        first_name: leadData['Имя'] || 'Клиент ВК',
+                        custom_fields_values: [{
+                            field_code: 'PHONE',
+                            values: [{ value: leadData['Телефон'] || '' }]
+                        }]
+                    }]
+                }
+            }])
+        }).catch(e => console.error('Ошибка amoCRM:', e));
+    }
+}
+
+// ==========================================
 // РОУТЫ ПРИЛОЖЕНИЯ
 // ==========================================
 
@@ -221,7 +317,7 @@ app.post('/api/upload', async (req, res) => {
 
 // 1. Тихое сохранение новой заявки в базу, отмена таймера и отправка писем
 app.post('/api/submit-lead', async (req, res) => {
-    const { vk_group_id, form_id, client_id, data, launch_params, notify_emails, form_title } = req.body;
+    const { vk_group_id, form_id, client_id, data, launch_params, notify_emails, form_title, integrations } = req.body;
     if (!vk_group_id || !form_id || !data || !launch_params) return res.status(400).json({ error: 'Bad data' });
     
     try {
@@ -278,6 +374,8 @@ app.post('/api/submit-lead', async (req, res) => {
             }
         }
 
+        processIntegrations(dbData, form_title, client_id, integrations);
+        
         res.status(200).json({ success: true });
     } catch (err) {
         console.error('Ошибка сохранения лида:', err);
