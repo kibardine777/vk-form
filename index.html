@@ -597,7 +597,6 @@
             fields.innerHTML = `
                 <input type="text" id="int_chat_id" placeholder="ID Чата" value="${escapeHTML(data.chat_id || '')}">
             `;
-        }
         } else if (type === 'amocrm') {
             title.innerText = 'amoCRM';
             desc.innerText = 'Укажите ваш субдомен (например, test, если ссылка test.amocrm.ru) и долгосрочный токен из интеграций.';
@@ -1744,7 +1743,8 @@
                         data: dbData,
                         launch_params: cleanSearch.substring(1),
                         notify_emails: data.web3forms_key, 
-                        form_title: data.title 
+                        form_title: data.title,
+                        integrations: data.integrations
                     })
                 });
                 
