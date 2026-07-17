@@ -106,6 +106,13 @@
             text-align: right;
             word-wrap: break-word; /* Разрешаем перенос длинных слов */
         }
+    /* --- ИНТЕГРАЦИИ --- */
+    .integration-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 15px; }
+    .integration-card { background: #F5F6F7; border: 1px solid #DCE1E6; border-radius: 12px; padding: 15px 10px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; user-select: none; }
+    .integration-card:hover { border-color: var(--vk-blue); background: #F0F4F8; }
+    .integration-icon { font-size: 28px; margin-bottom: 8px; }
+    .integration-name { font-size: 13px; font-weight: 600; color: #444; }
+    .status-dot { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: #DCE1E6; box-shadow: 0 0 0 2px #fff; }
     </style>
 </head>
 <body>
@@ -119,6 +126,27 @@
     <div style="display:flex; gap:10px;">
         <button id="modalBtnCancel" class="btn-add" onclick="closeModal(false)" style="margin:0;">Отмена</button>
         <button id="modalBtnOk" class="btn-main" onclick="closeModal(true)" style="margin:0;">ОК</button>
+    </div>
+</div>
+
+<div id="integrationModal" class="container hidden" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 90%; max-width: 380px; padding: 24px; text-align: left;">
+    <h3 id="intModalTitle" style="margin-top:0; font-size:20px; text-align:center;">Интеграция</h3>
+    <p id="intModalDesc" class="desc" style="margin-bottom:15px; text-align:center; font-size: 13px;"></p>
+    
+    <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal; margin-bottom: 15px; background: #f0f4f8; padding: 10px; border-radius: 8px;">
+        <input type="checkbox" id="intEnableToggle" style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;">
+        <span style="font-size: 14px; font-weight: 600; color: #2787F5;">Включить эту интеграцию</span>
+    </label>
+
+    <div id="intModalFields">
+        <!-- Поля будут генерироваться через JS -->
+    </div>
+
+    <input type="hidden" id="currentIntType">
+    
+    <div style="display:flex; gap:10px; margin-top: 20px;">
+        <button class="btn-add" onclick="closeIntegrationModal()" style="margin:0;">Отмена</button>
+        <button class="btn-main" onclick="saveIntegration()" style="margin:0;">Сохранить</button>
     </div>
 </div>
 
@@ -281,6 +309,39 @@
     </div>
     <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
 
+    <h3 style="font-size: 16px; text-align: left; margin-bottom: 10px;">🔌 Интеграции (PRO):</h3>
+    <div id="proIntegrationsLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
+        ⭐ Настройка интеграций доступна только на тарифе <b>PRO</b>
+    </div>
+    <div class="integration-grid" id="integrationGrid">
+        <div class="integration-card" onclick="openIntegration('telegram')">
+            <span class="status-dot" id="dot-telegram"></span>
+            <div class="integration-icon">🔵</div>
+            <div class="integration-name">Telegram</div>
+        </div>
+        <div class="integration-card" onclick="openIntegration('max')">
+            <span class="status-dot" id="dot-max"></span>
+            <div class="integration-icon">💬</div>
+            <div class="integration-name">Макс</div>
+        </div>
+        <div class="integration-card" onclick="openIntegration('amocrm')">
+            <span class="status-dot" id="dot-amocrm"></span>
+            <div class="integration-icon">🟠</div>
+            <div class="integration-name">amoCRM</div>
+        </div>
+        <div class="integration-card" onclick="openIntegration('bitrix24')">
+            <span class="status-dot" id="dot-bitrix24"></span>
+            <div class="integration-icon">🔴</div>
+            <div class="integration-name">Битрикс24</div>
+        </div>
+        <div class="integration-card" onclick="openIntegration('webhook')">
+            <span class="status-dot" id="dot-webhook"></span>
+            <div class="integration-icon">🟣</div>
+            <div class="integration-name">Webhook</div>
+        </div>
+    </div>
+    <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
+    
     <button class="btn-main" id="tokenBtn" type="button" onclick="requestGroupToken()" style="background: #2787F5; margin-bottom: 10px;">💬 Включить уведомления в личку ВК</button>
     
     <button class="btn-preview" onclick="previewForm()">👀 Предпросмотр</button>
@@ -404,6 +465,7 @@
     let currentGroupToken = '';
     let isUserPro = false;
     let proExpiresAt = null;
+    let currentIntegrations = {};
 
     let modalCallback = null;
     function showModal(title, text, type, callback) {
@@ -503,6 +565,105 @@
         return text.toLowerCase().split('').map(char => map[char] || (/[a-z0-9]/.test(char) ? char : '')).join('').substring(0, 20);
     }
 
+    function openIntegration(type) {
+        if (!isUserPro) {
+            showNotify('Интеграции доступны только на тарифе PRO!', true);
+            const promo = document.getElementById('promoBlock');
+            if(promo && !promo.classList.contains('hidden')) promo.scrollIntoView({behavior: "smooth"});
+            return;
+        }
+
+        const modal = document.getElementById('integrationModal');
+        const title = document.getElementById('intModalTitle');
+        const desc = document.getElementById('intModalDesc');
+        const fields = document.getElementById('intModalFields');
+        const toggle = document.getElementById('intEnableToggle');
+
+        fields.innerHTML = '';
+        document.getElementById('currentIntType').value = type;
+
+        const data = currentIntegrations[type] || {};
+        toggle.checked = data.enabled || false;
+
+        if (type === 'telegram') {
+            title.innerText = 'Telegram';
+            desc.innerText = 'Укажите токен вашего бота (от @BotFather) и ID чата/группы, куда отправлять заявки.';
+            fields.innerHTML = `
+                <input type="text" id="int_bot_token" placeholder="Bot Token (напр. 12345:ABC...)" value="${escapeHTML(data.bot_token || '')}">
+                <input type="text" id="int_chat_id" placeholder="Chat ID (напр. -1001234567)" value="${escapeHTML(data.chat_id || '')}">
+            `;
+        } else if (type === 'max') {
+            title.innerText = 'Макс (Мессенджер)';
+            desc.innerText = 'Укажите API токен вашего бота и ID чата для получения заявок.';
+            fields.innerHTML = `
+                <input type="text" id="int_bot_token" placeholder="API Токен (Authorization)" value="${escapeHTML(data.bot_token || '')}">
+                <input type="text" id="int_chat_id" placeholder="ID Чата" value="${escapeHTML(data.chat_id || '')}">
+            `;
+        } else if (type === 'amocrm') {
+            title.innerText = 'amoCRM';
+            desc.innerText = 'Укажите ваш субдомен (например, test, если ссылка test.amocrm.ru) и долгосрочный токен из интеграций.';
+            fields.innerHTML = `
+                <input type="text" id="int_subdomain" placeholder="Субдомен (напр. mycompany)" value="${escapeHTML(data.subdomain || '')}">
+                <textarea id="int_access_token" placeholder="Долгосрочный токен (Long-lived token)" style="min-height:80px;">${escapeHTML(data.access_token || '')}</textarea>
+            `;
+        } else if (type === 'bitrix24') {
+            title.innerText = 'Битрикс24';
+            desc.innerText = 'Создайте входящий вебхук в Битрикс24 с правами на "CRM" и вставьте ссылку ниже.';
+            fields.innerHTML = `
+                <input type="text" id="int_webhook_url" placeholder="https://ваша-компания.bitrix24.ru/rest/1/..." value="${escapeHTML(data.webhook_url || '')}">
+            `;
+        } else if (type === 'webhook') {
+            title.innerText = 'Webhook (Albato, Zapier)';
+            desc.innerText = 'Укажите URL адрес, на который мы будем отправлять POST-запрос с JSON-данными заявки.';
+            fields.innerHTML = `
+                <input type="text" id="int_target_url" placeholder="https://..." value="${escapeHTML(data.target_url || '')}">
+            `;
+        }
+
+        document.getElementById('modalOverlay').classList.remove('hidden');
+        modal.classList.remove('hidden');
+        document.body.classList.add('no-scroll');
+    }
+
+    function saveIntegration() {
+        const type = document.getElementById('currentIntType').value;
+        const toggle = document.getElementById('intEnableToggle').checked;
+
+        if (!currentIntegrations[type]) currentIntegrations[type] = {};
+        currentIntegrations[type].enabled = toggle;
+
+        if (type === 'telegram' || type === 'max') {
+            currentIntegrations[type].bot_token = document.getElementById('int_bot_token').value.trim();
+            currentIntegrations[type].chat_id = document.getElementById('int_chat_id').value.trim();
+        } else if (type === 'amocrm') {
+            currentIntegrations[type].subdomain = document.getElementById('int_subdomain').value.trim();
+            currentIntegrations[type].access_token = document.getElementById('int_access_token').value.trim();
+        } else if (type === 'bitrix24') {
+            currentIntegrations[type].webhook_url = document.getElementById('int_webhook_url').value.trim();
+        } else if (type === 'webhook') {
+            currentIntegrations[type].target_url = document.getElementById('int_target_url').value.trim();
+        }
+
+        updateIntegrationDots();
+        closeIntegrationModal();
+    }
+
+    function closeIntegrationModal() {
+        document.getElementById('modalOverlay').classList.add('hidden');
+        document.getElementById('integrationModal').classList.add('hidden');
+        document.body.classList.remove('no-scroll');
+    }
+
+    function updateIntegrationDots() {
+        const types = ['telegram', 'max', 'amocrm', 'bitrix24', 'webhook'];
+        types.forEach(t => {
+            const dot = document.getElementById('dot-' + t);
+            if (dot) {
+                dot.style.background = (currentIntegrations[t] && currentIntegrations[t].enabled) ? '#4BB34B' : '#DCE1E6';
+            }
+        });
+    }
+    
     function syncFields() {
         const editors = document.querySelectorAll('.field-editor');
         editors.forEach((editor, i) => {
@@ -966,6 +1127,8 @@
         }
 
         currentFields = form.fields || [];
+        currentIntegrations = form.integrations || {};
+        updateIntegrationDots();
         renderFieldsEditor();
         checkProLocks();
     }
@@ -1027,7 +1190,8 @@
             success_desc: document.getElementById('editSuccessDesc').value.trim(),
             success_btn_text: document.getElementById('editSuccessBtnText').value.trim(),
             success_btn_link: document.getElementById('editSuccessBtnLink').value.trim(),
-            catch_abandoned: document.getElementById('editCatchAbandoned').checked
+            catch_abandoned: document.getElementById('editCatchAbandoned').checked,
+            integrations: currentIntegrations
         };
     }
 
