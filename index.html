@@ -587,18 +587,17 @@
 
         if (type === 'telegram') {
             title.innerText = 'Telegram';
-            desc.innerText = 'Укажите токен вашего бота (от @BotFather) и ID чата/группы, куда отправлять заявки.';
+            desc.innerText = 'Укажите ваш Chat ID. Чтобы бот мог присылать заявки, найдите в Telegram бота @vk_forms_leads_bot и нажмите /start.';
             fields.innerHTML = `
-                <input type="text" id="int_bot_token" placeholder="Bot Token (напр. 12345:ABC...)" value="${escapeHTML(data.bot_token || '')}">
-                <input type="text" id="int_chat_id" placeholder="Chat ID (напр. -1001234567)" value="${escapeHTML(data.chat_id || '')}">
+                <input type="text" id="int_chat_id" placeholder="Chat ID (напр. 123456789)" value="${escapeHTML(data.chat_id || '')}">
             `;
         } else if (type === 'max') {
             title.innerText = 'Макс (Мессенджер)';
-            desc.innerText = 'Укажите API токен вашего бота и ID чата для получения заявок.';
+            desc.innerText = 'Укажите ваш ID чата. Обязательно напишите нашему боту se13599408_bot любое сообщение, чтобы он мог присылать вам заявки.';
             fields.innerHTML = `
-                <input type="text" id="int_bot_token" placeholder="API Токен (Authorization)" value="${escapeHTML(data.bot_token || '')}">
                 <input type="text" id="int_chat_id" placeholder="ID Чата" value="${escapeHTML(data.chat_id || '')}">
             `;
+        }
         } else if (type === 'amocrm') {
             title.innerText = 'amoCRM';
             desc.innerText = 'Укажите ваш субдомен (например, test, если ссылка test.amocrm.ru) и долгосрочный токен из интеграций.';
@@ -633,7 +632,6 @@
         currentIntegrations[type].enabled = toggle;
 
         if (type === 'telegram' || type === 'max') {
-            currentIntegrations[type].bot_token = document.getElementById('int_bot_token').value.trim();
             currentIntegrations[type].chat_id = document.getElementById('int_chat_id').value.trim();
         } else if (type === 'amocrm') {
             currentIntegrations[type].subdomain = document.getElementById('int_subdomain').value.trim();
@@ -1011,8 +1009,11 @@
             document.getElementById('tokenBtn').style.background = '#2787F5';
         }
 
-        // Глубокое копирование вопросов
+        // Глубокое копирование вопросов и интеграций
         currentFields = JSON.parse(JSON.stringify(formToCopy.fields || []));
+        currentIntegrations = JSON.parse(JSON.stringify(formToCopy.integrations || {}));
+        
+        updateIntegrationDots(); // Зажигаем нужные зеленые точки на карточках
         renderFieldsEditor();
         checkProLocks(); 
         
