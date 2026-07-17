@@ -89,8 +89,9 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
     }
 
     // 2. Telegram
-    if (integrations.telegram && integrations.telegram.enabled && integrations.telegram.bot_token && integrations.telegram.chat_id) {
-        const tgUrl = `https://api.telegram.org/bot${integrations.telegram.bot_token}/sendMessage`;
+    if (integrations.telegram && integrations.telegram.enabled && integrations.telegram.chat_id) {
+        const tgToken = process.env.TG_BOT_TOKEN; // Твой токен ТГ бота из переменных сервера
+        const tgUrl = `https://api.telegram.org/bot${tgToken}/sendMessage`;
         fetch(tgUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -99,18 +100,16 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
     }
 
     // 3. Макс (Мессенджер)
-    if (integrations.max && integrations.max.enabled && integrations.max.bot_token && integrations.max.chat_id) {
-        // Используем новый домен api2, на который Макс переезжает в июле 2026 года
+    if (integrations.max && integrations.max.enabled && integrations.max.chat_id) {
+        const maxToken = process.env.MAX_BOT_TOKEN; // Твой токен Макс бота из переменных сервера
         const maxUrl = `https://platform-api2.max.ru/messages`; 
         fetch(maxUrl, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                // Токен в Максе передается прямо в заголовке Authorization
-                'Authorization': integrations.max.bot_token 
+                'Authorization': maxToken 
             },
             body: JSON.stringify({ 
-                // В зависимости от того, куда шлем, API принимает chat_id или user_id
                 chat_id: Number(integrations.max.chat_id), 
                 text: textMessage 
             })
