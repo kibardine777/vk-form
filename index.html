@@ -587,13 +587,13 @@
 
         if (type === 'telegram') {
             title.innerText = 'Telegram';
-            desc.innerText = 'Укажите ваш Chat ID. Чтобы бот мог присылать заявки, найдите в Telegram бота @vk_forms_leads_bot и нажмите /start.';
+            desc.innerHTML = 'Укажите ваш Chat ID. Чтобы бот мог присылать заявки, перейдите в Telegram бота <a href="https://t.me/vk_forms_leads_bot" target="_blank" style="color: var(--vk-blue); text-decoration: none;"><b>@vk_forms_leads_bot</b></a> и нажмите /start. Бот в ответном сообщении пришлет ваш ID.';
             fields.innerHTML = `
                 <input type="text" id="int_chat_id" placeholder="Chat ID (напр. 123456789)" value="${escapeHTML(data.chat_id || '')}">
             `;
         } else if (type === 'max') {
             title.innerText = 'Макс (Мессенджер)';
-            desc.innerText = 'Укажите ваш ID чата. Обязательно напишите нашему боту se13599408_bot любое сообщение, чтобы он мог присылать вам заявки.';
+            desc.innerHTML = 'Укажите ваш ID чата. Перейдите в бота <a href="https://max.ru/se13599408_bot" target="_blank" style="color: var(--vk-blue); text-decoration: none;"><b>@se13599408_bot</b></a> и напишите любое сообщение, чтобы бот прислал вам ваш ID.';
             fields.innerHTML = `
                 <input type="text" id="int_chat_id" placeholder="ID Чата" value="${escapeHTML(data.chat_id || '')}">
             `;
