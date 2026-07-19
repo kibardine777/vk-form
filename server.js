@@ -373,7 +373,7 @@ app.post('/api/submit-lead', async (req, res) => {
             }
         }
 
-        processIntegrations(dbData, form_title, client_id, integrations);
+        processIntegrations(data, form_title, client_id, integrations);
         
         res.status(200).json({ success: true });
     } catch (err) {
