@@ -91,18 +91,23 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
 
     // 2. Telegram
     if (integrations.telegram && integrations.telegram.enabled && integrations.telegram.chat_id) {
-        const tgToken = process.env.TG_BOT_TOKEN; // Твой токен ТГ бота из переменных сервера
-        const tgUrl = `https://tapi.bota.ru/bot${integrations.telegram.bot_token}/sendMessage`;
+        const tgToken = process.env.TG_BOT_TOKEN; 
+        // Поменяли зеркало на более стабильное:
+        const tgUrl = `https://api.tlgrm.app/bot${tgToken}/sendMessage`;
         fetch(tgUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: integrations.telegram.chat_id, text: textMessage })
-        }).catch(e => console.error('Ошибка Telegram:', e));
+        })
+        .then(async res => {
+            if (!res.ok) console.error('Telegram API отказал:', res.status, await res.text());
+        })
+        .catch(e => console.error('Ошибка сети Telegram:', e));
     }
 
     // 3. Макс (Мессенджер)
     if (integrations.max && integrations.max.enabled && integrations.max.chat_id) {
-        const maxToken = process.env.MAX_BOT_TOKEN; // Твой токен Макс бота из переменных сервера
+        const maxToken = process.env.MAX_BOT_TOKEN; 
         const maxUrl = `https://platform-api2.max.ru/messages`; 
         fetch(maxUrl, {
             method: 'POST',
@@ -114,7 +119,11 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
                 chat_id: Number(integrations.max.chat_id), 
                 text: textMessage 
             })
-        }).catch(e => console.error('Ошибка Макс:', e));
+        })
+        .then(async res => {
+            if (!res.ok) console.error('Макс API отказал:', res.status, await res.text());
+        })
+        .catch(e => console.error('Ошибка сети Макс:', e));
     }
 
     // 4. Битрикс24 (Создание лида через входящий вебхук)
