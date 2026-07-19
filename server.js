@@ -92,7 +92,7 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
     // 2. Telegram
     if (integrations.telegram && integrations.telegram.enabled && integrations.telegram.chat_id) {
         const tgToken = process.env.TG_BOT_TOKEN; 
-        const tgUrl = `https://tapi.bota.ru/bot${tgToken}/sendMessage`;
+        const tgUrl = `https://api.telegram.org/bot${tgToken}/sendMessage`;
         fetch(tgUrl, {
             method: 'POST',
             headers: { 
