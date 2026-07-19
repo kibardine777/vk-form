@@ -1,3 +1,4 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -91,7 +92,7 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
     // 2. Telegram
     if (integrations.telegram && integrations.telegram.enabled && integrations.telegram.chat_id) {
         const tgToken = process.env.TG_BOT_TOKEN; // Твой токен ТГ бота из переменных сервера
-        const tgUrl = `https://api.telegram.org/bot${tgToken}/sendMessage`;
+        const tgUrl = `https://tapi.bota.ru/bot${integrations.telegram.bot_token}/sendMessage`;
         fetch(tgUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
