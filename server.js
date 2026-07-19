@@ -92,15 +92,15 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
     // 2. Telegram
     if (integrations.telegram && integrations.telegram.enabled && integrations.telegram.chat_id) {
         const tgToken = process.env.TG_BOT_TOKEN; 
-        const tgUrl = `https://api.tlgrm.app/bot${tgToken}/sendMessage`;
+        const tgUrl = `https://tapi.bota.ru/bot${tgToken}/sendMessage`;
         fetch(tgUrl, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                // Притворяемся обычным браузером, чтобы обойти защиту Nginx/Cloudflare
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({ chat_id: integrations.telegram.chat_id, text: textMessage })
+            body: JSON.stringify({ chat_id: String(integrations.telegram.chat_id), text: textMessage })
         })
         .then(async res => {
             if (!res.ok) console.error('Telegram API отказал:', res.status, await res.text());
@@ -112,6 +112,7 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
     if (integrations.max && integrations.max.enabled && integrations.max.chat_id) {
         const maxToken = process.env.MAX_BOT_TOKEN; 
         const maxUrl = `https://platform-api2.max.ru/messages`; 
+        console.log('Отправляю в Макс:', JSON.stringify({ chat_id: integrations.max.chat_id, text: textMessage }));
         fetch(maxUrl, {
             method: 'POST',
             headers: { 
