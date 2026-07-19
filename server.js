@@ -126,7 +126,17 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
             })
         })
         .then(async res => {
-            if (!res.ok) console.error('Макс API отказал:', res.status, await res.text());
+            const body = await res.text();
+
+            console.log('====================');
+            console.log('MAX STATUS:', res.status);
+            console.log('MAX BODY:', body);
+            console.log('====================');
+
+            if (!res.ok) {
+                console.error('Макс API отказал:', res.status);
+                console.error(body);
+            }
         })
         .catch(e => console.error('Ошибка сети Макс:', e));
     }
