@@ -1098,7 +1098,7 @@
     }
 
     function copyLink(id) {
-        const appUrl = `https://vk.com/app${params.get('vk_app_id')}_-${gid}#form=${id}`;
+        const appUrl = `https://vk.ru/app${params.get('vk_app_id')}_-${gid}#form=${id}`;
         vkBridge.send("VKWebAppCopyText", {"text": appUrl})
             .then(() => showNotify("Ссылка скопирована!"))
             .catch(() => { showNotify("Не удалось скопировать", true); });
