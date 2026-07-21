@@ -604,7 +604,7 @@ app.post('/api/pay', async (req, res) => {
         amount = '669.00';
         description = 'PRO-тариф (3 месяца): до 10 форм';
     } else if (plan === '1year') {
-        amount = '2399.00';
+        amount = '2199.00';
         description = 'PRO-тариф (1 год): до 10 форм';
     }
 
