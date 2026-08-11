@@ -191,9 +191,12 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
 // ==========================================
 
 // Загрузка настроек формы
+// СТАЛО:
 app.all('/api/load', async (req, res) => {
-    const gid = req.body.gid || req.query.gid;
-    const launch_params = req.body.launch_params || req.query.launch_params;
+    const gid = req.query.gid || req.body.gid;
+    // Сервер сначала ищет подпись в заголовках, затем в URL, затем в теле
+    const launch_params = req.headers['x-launch-params'] || req.query.launch_params || req.body.launch_params;
+    
     if (!gid) return res.status(400).json({ error: 'No vk_group_id' });
 
     try {
@@ -458,9 +461,9 @@ app.post('/api/track-open', (req, res) => {
 
 // 2. Скачивание заявок в CSV (Только для PRO + Защита)
 app.all('/api/export-leads', async (req, res) => {
-    const gid = req.body.gid || req.query.gid;
-    const form_id = req.body.form_id || req.query.form_id;
-    const launch_params = req.body.launch_params || req.query.launch_params;
+    const gid = req.query.gid || req.body.gid;
+    const form_id = req.query.form_id || req.body.form_id;
+    const launch_params = req.headers['x-launch-params'] || req.query.launch_params || req.body.launch_params;
 
     try {
         // Проверка подписи: скачивать может только администратор группы
