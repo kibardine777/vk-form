@@ -782,10 +782,12 @@
         }
 
         try {
-            const response = await fetch(`/api/load`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ gid: gid, launch_params: cleanSearch.substring(1) })
+            const response = await fetch(`/api/load?gid=${gid}`, {
+                method: 'GET',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Launch-Params': cleanSearch.substring(1) 
+                }
             });
             if (!response.ok) throw new Error('Ошибка сети');
             
@@ -1045,11 +1047,13 @@
         btn.innerText = '⏳ Собираем...';
         btn.disabled = true;
 
-        // Добавляем launch_params к запросу для верификации прав
-        fetch(`/api/export-leads`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ gid: gid, form_id: formId, launch_params: cleanSearch.substring(1) })
+        // Добавляем launch_params в безопасный заголовок
+        fetch(`/api/export-leads?gid=${gid}&form_id=${formId}`, {
+            method: 'GET',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Launch-Params': cleanSearch.substring(1) 
+            }
         })
         .then(async res => {
             if (!res.ok) {
