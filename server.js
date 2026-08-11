@@ -191,8 +191,9 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
 // ==========================================
 
 // Загрузка настроек формы
-app.get('/api/load', async (req, res) => {
-    const { gid, launch_params } = req.query; // Добавили launch_params
+app.all('/api/load', async (req, res) => {
+    const gid = req.body.gid || req.query.gid;
+    const launch_params = req.body.launch_params || req.query.launch_params;
     if (!gid) return res.status(400).json({ error: 'No vk_group_id' });
 
     try {
@@ -456,8 +457,10 @@ app.post('/api/track-open', (req, res) => {
 });
 
 // 2. Скачивание заявок в CSV (Только для PRO + Защита)
-app.get('/api/export-leads', async (req, res) => {
-    const { gid, form_id, launch_params } = req.query;
+app.all('/api/export-leads', async (req, res) => {
+    const gid = req.body.gid || req.query.gid;
+    const form_id = req.body.form_id || req.query.form_id;
+    const launch_params = req.body.launch_params || req.query.launch_params;
 
     try {
         // Проверка подписи: скачивать может только администратор группы
