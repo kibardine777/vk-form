@@ -1487,9 +1487,20 @@
                     a.click();
                     document.body.removeChild(a);
                 } else {
-                    // Стандартное закрытие ВК (с подстраховкой для ПК)
-                    vkBridge.send('VKWebAppClose', {'status': 'success'})
-                        .catch(() => showNotify('Форма отправлена! Вкладку можно закрыть.'));
+                    const ref = params.get('vk_ref');
+                    const platform = params.get('vk_platform');
+                    if ((platform === 'desktop_web' || platform === 'mobile_web') && ref !== 'group_menu' && ref !== 'group_widget') {
+                        const a = document.createElement('a');
+                        a.href = `https://vk.com/club${gid}`;
+                        a.target = '_top';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    } else {
+                        // Стандартное закрытие ВК (с подстраховкой для ПК)
+                        vkBridge.send('VKWebAppClose', {'status': 'success'})
+                            .catch(() => showNotify('Форма отправлена! Вкладку можно закрыть.'));
+                    }
                 }
             }
         };
@@ -1659,7 +1670,19 @@
                         a.click();
                         document.body.removeChild(a);
                     } else {
-                        vkBridge.send('VKWebAppClose', {'status': 'success'});
+                        const ref = params.get('vk_ref');
+                        const platform = params.get('vk_platform');
+                        // Если открыто в браузере по прямой ссылке — принудительно кидаем в группу
+                        if ((platform === 'desktop_web' || platform === 'mobile_web') && ref !== 'group_menu' && ref !== 'group_widget') {
+                            const a = document.createElement('a');
+                            a.href = `https://vk.com/club${gid}`;
+                            a.target = '_top';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        } else {
+                            vkBridge.send('VKWebAppClose', {'status': 'success'});
+                        }
                     }
                 };
             }
