@@ -364,6 +364,21 @@ app.post('/api/submit-lead', async (req, res) => {
             return res.status(403).json({ error: 'Неверная подпись ВК' });
         }
 
+        // === Проверка активности формы (лимит бесплатного тарифа) ===
+        const formCheck = await pool.query('SELECT fields, is_pro, pro_expires_at FROM forms WHERE vk_group_id = $1', [vk_group_id]);
+        if (formCheck.rows.length > 0) {
+            const row = formCheck.rows[0];
+            const isPro = row.is_pro && (!row.pro_expires_at || new Date(row.pro_expires_at) > new Date());
+            
+            if (!isPro && Array.isArray(row.fields)) {
+                const targetIndex = row.fields.findIndex(f => f.form_id === form_id);
+                // Если форма найдена и она 3-я или дальше по списку (индекс >= 2) — отклоняем
+                if (targetIndex >= 2) {
+                    return res.status(403).json({ error: 'Форма заблокирована. Требуется PRO тариф.' });
+                }
+            }
+        }
+        
         // Отменяем таймер Ловца лидов
         if (client_id) {
             const timerKey = `${vk_group_id}_${form_id}_${client_id}`;
