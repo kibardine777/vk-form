@@ -179,6 +179,12 @@
     <p class="desc" style="text-align:center; margin-bottom:0;">Администратор сообщества прямо сейчас настраивает это приложение. Пожалуйста, загляните сюда чуть позже!</p>
 </div>
 
+<div id="formInactiveView" class="container hidden" style="padding: 40px 20px; text-align: center;">
+    <div style="font-size: 40px; margin-bottom: 10px;">🔒</div>
+    <h2 style="text-align:center; color:var(--text-main);">Форма временно недоступна</h2>
+    <p class="desc" style="text-align:center; margin-bottom:0;">Приём заявок по этой форме приостановлен. Пожалуйста, обратитесь напрямую к администраторам сообщества.</p>
+</div>
+
 <div id="dashboardView" class="container hidden">
     <h2 style="margin:0 0 8px 0;">Управление формами</h2>
     <p class="desc">Создавайте разные формы для акций и задач.</p>
@@ -821,12 +827,19 @@
                 showDashboard();
             } else {
                 if (allForms.length > 0) {
-                    let formToShow = allForms[0]; 
+                    let formIndex = 0;
                     if (requestedFormId) {
-                        const found = allForms.find(f => f.form_id === requestedFormId);
-                        if (found) formToShow = found;
+                        const foundIndex = allForms.findIndex(f => f.form_id === requestedFormId);
+                        if (foundIndex !== -1) formIndex = foundIndex;
                     }
-                    renderClientForm(formToShow, false);
+                    
+                    // Если нет PRO и форма идет под номером 3 и дальше (индекс >= 2) — блокируем
+                    if (!isUserPro && formIndex >= 2) {
+                        hideAll();
+                        document.getElementById('formInactiveView').classList.remove('hidden');
+                    } else {
+                        renderClientForm(allForms[formIndex], false);
+                    }
                 } else {
                     hideAll();
                     document.getElementById('subscriberStubView').classList.remove('hidden');
@@ -858,15 +871,24 @@
             return;
         }
 
-        allForms.forEach((form) => {
+        allForms.forEach((form, index) => {
+            const isLocked = (!isUserPro && index >= 2);
             const div = document.createElement('div');
             div.className = 'form-card';
+            if (isLocked) {
+                div.style.border = '1px dashed #FF3B30';
+                div.style.background = '#F9F9F9';
+            }
+            
+            const lockBadge = isLocked ? `<span style="background: #FF3B30; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: bold; margin-left: 6px;">🔒 Неактивна (нужен PRO)</span>` : '';
+
             div.innerHTML = `
-                <h3>${escapeHTML(form.internal_name || form.title || 'Форма без названия')}</h3>
+                <h3 style="${isLocked ? 'opacity: 0.7;' : ''}">${escapeHTML(form.internal_name || form.title || 'Форма без названия')} ${lockBadge}</h3>
+                ${isLocked ? `<p style="font-size: 12px; color: #818C99; margin: 0 0 10px 0;">Форма отключена, так как на бесплатном тарифе доступно только 2 формы. Продлите PRO для активации.</p>` : ''}
                 <div class="form-card-actions" style="margin-bottom: 8px;">
-                    <button class="btn-main" onclick="openEditor('${escapeHTML(form.form_id)}')">⚙️ Ред.</button>
-                    <button class="btn-add" onclick="duplicateForm('${escapeHTML(form.form_id)}')">📋 Копия</button>
-                    <button class="btn-add" onclick="copyLink('${escapeHTML(form.form_id)}')">🔗 Ссылка</button>
+                    <button class="btn-main" onclick="${isLocked ? `showNotify('Продлите тариф PRO, чтобы редактировать эту форму!', true)` : `openEditor('${escapeHTML(form.form_id)}')`}" style="${isLocked ? 'opacity: 0.5; filter: grayscale(1);' : ''}">⚙️ Ред.</button>
+                    <button class="btn-add" onclick="${isLocked ? `showNotify('Продлите тариф PRO для копирования этой формы!', true)` : `duplicateForm('${escapeHTML(form.form_id)}')`}" style="${isLocked ? 'opacity: 0.5;' : ''}">📋 Копия</button>
+                    <button class="btn-add" onclick="${isLocked ? `showNotify('Эта форма сейчас не принимает заявки!', true)` : `copyLink('${escapeHTML(form.form_id)}')`}" style="${isLocked ? 'opacity: 0.5;' : ''}">🔗 Ссылка</button>
                 </div>
                 <div class="form-card-actions">
                     <button class="btn-add" onclick="exportLeads('${escapeHTML(form.form_id)}', this)" style="background: #e6f4ea; color: #1e8e3e; font-weight: 500;">📥 Выгрузить Excel</button>
@@ -1809,6 +1831,7 @@
     function hideAll() {
         document.getElementById('landingView').classList.add('hidden');
         document.getElementById('subscriberStubView').classList.add('hidden');
+        document.getElementById('formInactiveView').classList.add('hidden');
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('dashboardView').classList.add('hidden');
         document.getElementById('adminView').classList.add('hidden');
