@@ -255,8 +255,9 @@
     
     <label>ID администраторов ВКонтакте (через запятую) <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editAdminIds" placeholder="Например: 52069477, 12345678" maxlength="300" onblur="cleanAdminIds(this)" style="margin-bottom: 6px;">
-    <div style="font-size: 12px; margin-bottom: 15px; text-align: left;">
-        <a href="https://vk.com/wall-238209888_40" target="_blank" style="color: var(--vk-blue); text-decoration: none;">❓ Не приходят сообщения в личку ВК? Посмотри инструкцию</a>
+    <div style="font-size: 12px; margin-bottom: 15px; text-align: left; display: flex; flex-direction: column; gap: 8px;">
+        <a href="javascript:void(0)" onclick="showModal('Как узнать цифровой ID?', 'ВКонтакте принимает только <b>чистые цифры</b>.<br><br>Если у вас буквенная ссылка (например, <i>marina_28</i>), скопируйте её и вставьте на сайт <a href=\'https://regvk.com/id/\' target=\'_blank\' style=\'color: var(--vk-blue);\'>regvk.com/id</a>.<br><br>Сервис выдаст вам правильный цифровой ID. Скопируйте его и вставьте в это поле.', 'info')" style="color: var(--vk-blue); text-decoration: none; border-bottom: 1px dashed var(--vk-blue); width: fit-content;">❓ Где взять правильный цифровой ID?</a>
+        <a href="https://vk.com/wall-238209888_40" target="_blank" style="color: var(--vk-blue); text-decoration: none; width: fit-content;">❓ Не приходят сообщения в личку ВК? Посмотри инструкцию</a>
     </div>
     
     <label>Ссылка на политику конфиденциальности <span style="color:#FF3B30">*</span>:</label>
@@ -478,8 +479,18 @@
         document.getElementById('modalOverlay').classList.remove('hidden');
         document.getElementById('customModal').classList.remove('hidden');
         document.getElementById('modalTitle').innerText = title;
-        document.getElementById('modalDesc').innerText = text;
+        document.getElementById('modalDesc').innerHTML = text; // Теперь разрешаем HTML-теги внутри
         document.body.classList.add('no-scroll'); 
+        
+        // Если это инфо-окно, прячем "Отмену" и меняем текст кнопки
+        if (type === 'info') {
+            document.getElementById('modalBtnCancel').style.display = 'none';
+            document.getElementById('modalBtnOk').innerText = 'Понятно';
+        } else {
+            document.getElementById('modalBtnCancel').style.display = 'block';
+            document.getElementById('modalBtnOk').innerText = 'ОК';
+        }
+        
         modalCallback = callback;
     }
 
