@@ -107,12 +107,13 @@
             word-wrap: break-word; /* Разрешаем перенос длинных слов */
         }
     /* --- ИНТЕГРАЦИИ --- */
-    .integration-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 15px; }
-    .integration-card { background: #F5F6F7; border: 1px solid #DCE1E6; border-radius: 12px; padding: 15px 10px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; user-select: none; }
-    .integration-card:hover { border-color: var(--vk-blue); background: #F0F4F8; }
-    .integration-icon { font-size: 28px; margin-bottom: 8px; }
-    .integration-name { font-size: 13px; font-weight: 600; color: #444; }
-    .status-dot { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: #DCE1E6; box-shadow: 0 0 0 2px #fff; }
+    .integration-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+    .integration-card { display: flex; align-items: center; background: #F5F6F7; border: 1px solid #DCE1E6; border-radius: 10px; padding: 12px 15px; cursor: pointer; transition: 0.2s; user-select: none; }
+    .integration-card:hover:not(.disabled) { border-color: var(--vk-blue); background: #F0F4F8; }
+    .integration-card.disabled { opacity: 0.5; cursor: default; }
+    .integration-icon { font-size: 22px; margin-right: 12px; line-height: 1; }
+    .integration-name { font-size: 14px; font-weight: 600; color: #444; flex: 1; text-align: left; }
+    .status-dot { position: relative; width: 10px; height: 10px; border-radius: 50%; background: #DCE1E6; flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -313,37 +314,37 @@
     </div>
     <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
 
-    <h3 style="font-size: 16px; text-align: left; margin-bottom: 10px;">🔌 Интеграции (PRO): на этапе разработки</h3>
-    <div id="proIntegrationsLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
-        ⭐ Настройка интеграций доступна только на тарифе <b>PRO</b>
+    <h3 style="font-size: 16px; text-align: left; margin-bottom: 10px;">🔌 Интеграции (PRO)</h3>
+<div id="proIntegrationsLock" class="hidden" style="margin-bottom: 15px; padding: 10px; background: #f5f7f9; border-radius: 8px; border: 1px dashed #5181b8; color: #5181b8; font-size: 13px; text-align: center;">
+    ⭐ Настройка интеграций доступна только на тарифе <b>PRO</b>
+</div>
+<div class="integration-grid" id="integrationGrid">
+    <div class="integration-card" onclick="openIntegration('amocrm')">
+        <div class="integration-icon">🟠</div>
+        <div class="integration-name">amoCRM</div>
+        <span class="status-dot" id="dot-amocrm"></span>
     </div>
-    <div class="integration-grid" id="integrationGrid">
-        <div class="integration-card" onclick="openIntegration('telegram')">
-            <span class="status-dot" id="dot-telegram"></span>
-            <div class="integration-icon">🔵</div>
-            <div class="integration-name">Telegram</div>
-        </div>
-        <div class="integration-card" onclick="openIntegration('max')">
-            <span class="status-dot" id="dot-max"></span>
-            <div class="integration-icon">💬</div>
-            <div class="integration-name">Макс</div>
-        </div>
-        <div class="integration-card" onclick="openIntegration('amocrm')">
-            <span class="status-dot" id="dot-amocrm"></span>
-            <div class="integration-icon">🟠</div>
-            <div class="integration-name">amoCRM</div>
-        </div>
-        <div class="integration-card" onclick="openIntegration('bitrix24')">
-            <span class="status-dot" id="dot-bitrix24"></span>
-            <div class="integration-icon">🔴</div>
-            <div class="integration-name">Битрикс24</div>
-        </div>
-        <div class="integration-card" onclick="openIntegration('webhook')">
-            <span class="status-dot" id="dot-webhook"></span>
-            <div class="integration-icon">🟣</div>
-            <div class="integration-name">Webhook</div>
-        </div>
+    <div class="integration-card" onclick="openIntegration('bitrix24')">
+        <div class="integration-icon">🔴</div>
+        <div class="integration-name">Битрикс24</div>
+        <span class="status-dot" id="dot-bitrix24"></span>
     </div>
+    <div class="integration-card" onclick="openIntegration('webhook')">
+        <div class="integration-icon">🟣</div>
+        <div class="integration-name">Webhook</div>
+        <span class="status-dot" id="dot-webhook"></span>
+    </div>
+    <div class="integration-card disabled" onclick="showNotify('Интеграция временно недоступна (в разработке)', true)">
+        <div class="integration-icon">🔵</div>
+        <div class="integration-name">Telegram (в разработке)</div>
+        <span class="status-dot" id="dot-telegram"></span>
+    </div>
+    <div class="integration-card disabled" onclick="showNotify('Интеграция временно недоступна (в разработке)', true)">
+        <div class="integration-icon">💬</div>
+        <div class="integration-name">Макс (в разработке)</div>
+        <span class="status-dot" id="dot-max"></span>
+    </div>
+</div>
     <hr style="border: 0; border-top: 1px solid #DCE1E6; margin: 20px 0;">
     
     <button class="btn-main" id="tokenBtn" type="button" onclick="requestGroupToken()" style="background: #2787F5; margin-bottom: 10px;">💬 Включить уведомления в личку ВК</button>
