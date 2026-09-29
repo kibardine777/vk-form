@@ -715,11 +715,11 @@ setInterval(async () => {
             
             const ids = adminIds.split(',').map(id => id.trim());
             for (const id of ids) {
-                await fetch(`https://api.vk.com/method/messages.send?user_id=${id}&message=${encodeURIComponent(msg)}&random_id=${Math.random()}&v=5.131&access_token=${token}`);
+                await fetch(`https://api.vk.com/method/messages.send?user_id=\({id}&message=\){encodeURIComponent(msg)}&random_id=\({Math.floor(Math.random() * 1000000)}&v=5.131&access_token=\){token}`);
             }
         }
     } catch (e) { console.error('Ошибка фонового уведомления:', e); }
-}, 15 * 1000); // Интервал: 24 часа
+}, 24 * 60 * 60 * 1000); // Интервал: 24 часа
 
 app.listen(port, '0.0.0.0', () => {
     console.log('==============================');
