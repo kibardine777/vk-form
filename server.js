@@ -772,11 +772,22 @@ setInterval(async () => {
             
             const ids = adminIds.split(',').map(id => id.trim());
             for (const id of ids) {
-                await fetch(`https://api.vk.com/method/messages.send?user_id=\({id}&message=\){encodeURIComponent(msg)}&random_id=\({Math.floor(Math.random() * 1000000)}&v=5.131&access_token=\){token}`);
+                // Используем надежный POST-запрос
+                await fetch('https://api.vk.com/method/messages.send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        access_token: token,
+                        user_id: id,
+                        message: msg,
+                        random_id: Math.floor(Math.random() * 1000000),
+                        v: '5.131'
+                    })
+                });
             }
         }
     } catch (e) { console.error('Ошибка фонового уведомления:', e); }
-}, 24 * 60 * 60 * 1000); // Интервал: 24 часа
+}, 24 * 60 * 60 * 1000);
 
 app.listen(port, '0.0.0.0', () => {
     console.log('==============================');
