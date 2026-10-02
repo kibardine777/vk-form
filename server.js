@@ -686,7 +686,6 @@ app.post('/api/webhook', async (req, res) => {
     res.status(200).send('OK');
 });
 
-// Секретная ссылка для ручного тестирования уведомлений
 app.get('/api/test-cron', async (req, res) => {
     try {
         const expiring = await pool.query(`
@@ -697,7 +696,7 @@ app.get('/api/test-cron', async (req, res) => {
             AND pro_expires_at <= CURRENT_DATE + INTERVAL '3 days'
         `);
 
-        let sentCount = 0;
+        let results = [];
 
         for (const row of expiring.rows) {
             const adminIds = row.fields[0]?.admin_vk_ids;
@@ -713,11 +712,31 @@ app.get('/api/test-cron', async (req, res) => {
             
             const ids = adminIds.split(',').map(id => id.trim());
             for (const id of ids) {
-                await fetch(`https://api.vk.com/method/messages.send?user_id=\({id}&message=\){encodeURIComponent(msg)}&random_id=\({Math.floor(Math.random() * 1000000)}&v=5.131&access_token=\){token}`);
+                // Переделали на правильный POST-запрос
+                const response = await fetch('https://api.vk.com/method/messages.send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        access_token: token,
+                        user_id: id,
+                        message: msg,
+                        random_id: Math.floor(Math.random() * 1000000),
+                        v: '5.131'
+                    })
+                });
+                
+                // Читаем ответ от ВК
+                const data = await response.json();
+                results.push({ 
+                    group_id: row.vk_group_id, 
+                    admin_id: id, 
+                    vk_api_response: data 
+                });
             }
-            sentCount++;
         }
-        res.status(200).send(`Проверка выполнена! Уведомления отправлены для ${sentCount} групп.`);
+        
+        // Выводим результат прямо на экран
+        res.status(200).json({ status: 'Проверка выполнена', details: results });
     } catch (e) { 
         console.error('Ошибка ручного теста:', e); 
         res.status(500).send('Ошибка при выполнении');
