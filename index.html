@@ -1222,6 +1222,7 @@
                     <option value="textarea" ${f.type==='textarea'?'selected':''}>Длинный ответ</option>
                     <option value="select" ${f.type==='select'?'selected':''}>Один вариант (точки)</option>
                     <option value="checkbox" ${f.type==='checkbox'?'selected':''}>Несколько (галочки)</option>
+                    <option value="date" ${f.type==='date'?'selected':''}}Дата (календарь)</option>
                 </select>
                 ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" class="inp-opt" value="${escapeHTML(f.options || '')}" placeholder="Варианты через запятую" maxlength="300">` : ''}
                 <label style="display: flex; align-items: center; font-weight: normal; font-size: 13px; cursor: pointer; margin-top: 8px;">
@@ -1633,6 +1634,8 @@
                 form.appendChild(wrap);
             } else if (f.type === 'textarea') {
                 const ta = document.createElement('textarea'); ta.name = safeName; if (f.required !== false) ta.required = true; ta.maxLength = 1000; form.appendChild(ta);
+            } else if (f.type === 'date') {
+                const inp = document.createElement('input'); inp.type = 'date'; inp.name = safeName; if (f.required !== false) inp.required = true; form.appendChild(inp);
             } else {
                 const inp = document.createElement('input'); inp.type = 'text'; inp.name = safeName; if (f.required !== false) inp.required = true; inp.maxLength = 300; form.appendChild(inp);
             }
