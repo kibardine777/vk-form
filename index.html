@@ -1222,7 +1222,7 @@
                     <option value="textarea" ${f.type==='textarea'?'selected':''}>Длинный ответ</option>
                     <option value="select" ${f.type==='select'?'selected':''}>Один вариант (точки)</option>
                     <option value="checkbox" ${f.type==='checkbox'?'selected':''}>Несколько (галочки)</option>
-                    <option value="date" ${f.type==='date'?'selected':''}}Дата (календарь)</option>
+                    <option value="date" ${f.type==='date'?'selected':''}>Дата (календарь)</option>
                 </select>
                 ${(f.type === 'select' || f.type === 'checkbox') ? `<input type="text" class="inp-opt" value="${escapeHTML(f.options || '')}" placeholder="Варианты через запятую" maxlength="300">` : ''}
                 <label style="display: flex; align-items: center; font-weight: normal; font-size: 13px; cursor: pointer; margin-top: 8px;">
