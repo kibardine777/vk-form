@@ -140,25 +140,85 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
         .catch(e => console.error('Ошибка сети Макс:', e));
     }
 
-    // 4. Битрикс24 (Создание лида через входящий вебхук)
+    // 4. Битрикс24 (Лид или Сделка + Контакт + Комментарий в ленту)
     if (integrations.bitrix24 && integrations.bitrix24.enabled && integrations.bitrix24.webhook_url) {
-        let b24Url = integrations.bitrix24.webhook_url;
-        if (!b24Url.endsWith('/')) b24Url += '/';
-        b24Url += 'crm.lead.add.json';
+        (async () => {
+            try {
+                let b24Base = integrations.bitrix24.webhook_url.trim();
+                if (!b24Base.endsWith('/')) b24Base += '/';
 
-        fetch(b24Url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                fields: {
-                    TITLE: `Заявка: ${formTitle}`,
-                    NAME: leadData['Имя'] || 'Клиент ВК',
-                    PHONE: [{ "VALUE": leadData['Телефон'] || '', "VALUE_TYPE": "WORK" }],
-                    COMMENTS: textMessage
+                const entityType = integrations.bitrix24.entity_type || 'lead';
+                const clientName = leadData['Имя'] || 'Клиент ВК';
+                const clientPhone = leadData['Телефон'] || '';
+                let entityId = null;
+
+                if (entityType === 'deal') {
+                    // 1. Создаем Контакт
+                    const contactRes = await fetch(b24Base + 'crm.contact.add.json', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            fields: {
+                                NAME: clientName,
+                                PHONE: [{ "VALUE": clientPhone, "VALUE_TYPE": "WORK" }]
+                            }
+                        })
+                    });
+                    const contactData = await contactRes.json();
+                    const contactId = contactData.result;
+
+                    // 2. Создаем Сделку и привязываем к ней Контакт
+                    const dealRes = await fetch(b24Base + 'crm.deal.add.json', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            fields: {
+                                TITLE: `Заявка: ${formTitle}`,
+                                CONTACT_ID: contactId || undefined,
+                                COMMENTS: textMessage
+                            }
+                        })
+                    });
+                    const dealData = await dealRes.json();
+                    entityId = dealData.result;
+                } else {
+                    // Классический режим: создаем Лид
+                    const leadRes = await fetch(b24Base + 'crm.lead.add.json', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            fields: {
+                                TITLE: `Заявка: ${formTitle}`,
+                                NAME: clientName,
+                                PHONE: [{ "VALUE": clientPhone, "VALUE_TYPE": "WORK" }],
+                                COMMENTS: textMessage
+                            }
+                        })
+                    });
+                    const leadResData = await leadRes.json();
+                    entityId = leadResData.result;
                 }
-            })
-        }).catch(e => console.error('Ошибка Битрикс24:', e));
+
+                // 3. Дублируем весь текст заявки в правую ленту (Таймлайн)
+                if (entityId) {
+                    await fetch(b24Base + 'crm.timeline.comment.add.json', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            fields: {
+                                ENTITY_ID: entityId,
+                                ENTITY_TYPE: entityType,
+                                COMMENT: textMessage
+                            }
+                        })
+                    });
+                }
+            } catch (e) {
+                console.error('Ошибка Битрикс24:', e);
+            }
+        })();
     }
+
 
     // 5. amoCRM (Комплексное создание сделки + контакта)
     if (integrations.amocrm && integrations.amocrm.enabled && integrations.amocrm.subdomain && integrations.amocrm.access_token) {
