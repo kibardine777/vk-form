@@ -631,8 +631,6 @@
                     <option value="deal" ${entityType === 'deal' ? 'selected' : ''}>Сделка + Контакт (Простая CRM)</option>
                 </select>
             `;
-        }
-
         } else if (type === 'webhook') {
             title.innerText = 'Webhook (Albato, Zapier)';
             desc.innerText = 'Укажите URL адрес, на который мы будем отправлять POST-запрос с JSON-данными заявки.';
