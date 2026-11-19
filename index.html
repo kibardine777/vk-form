@@ -622,9 +622,17 @@
         } else if (type === 'bitrix24') {
             title.innerText = 'Битрикс24';
             desc.innerText = 'Создайте входящий вебхук в Битрикс24 с правами на "CRM" и вставьте ссылку ниже.';
+            const entityType = data.entity_type || 'lead';
             fields.innerHTML = `
                 <input type="text" id="int_webhook_url" placeholder="https://ваша-компания.bitrix24.ru/rest/1/..." value="${escapeHTML(data.webhook_url || '')}">
+                <label style="margin-top: 5px;">Что создавать в Битрикс24:</label>
+                <select id="int_b24_entity">
+                    <option value="lead" ${entityType === 'lead' ? 'selected' : ''}>Лид (Классическая CRM)</option>
+                    <option value="deal" ${entityType === 'deal' ? 'selected' : ''}>Сделка + Контакт (Простая CRM)</option>
+                </select>
             `;
+        }
+
         } else if (type === 'webhook') {
             title.innerText = 'Webhook (Albato, Zapier)';
             desc.innerText = 'Укажите URL адрес, на который мы будем отправлять POST-запрос с JSON-данными заявки.';
@@ -652,6 +660,7 @@
             currentIntegrations[type].access_token = document.getElementById('int_access_token').value.trim();
         } else if (type === 'bitrix24') {
             currentIntegrations[type].webhook_url = document.getElementById('int_webhook_url').value.trim();
+            currentIntegrations[type].entity_type = document.getElementById('int_b24_entity').value;
         } else if (type === 'webhook') {
             currentIntegrations[type].target_url = document.getElementById('int_target_url').value.trim();
         }
