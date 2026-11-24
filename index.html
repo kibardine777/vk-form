@@ -1506,6 +1506,20 @@
                         }).catch(e => console.error(e));
                     }
                 }
+                // Отправляем приз в Webhook, если интеграция включена
+                if (!isPreview && data.integrations && data.integrations.webhook && data.integrations.webhook.enabled && data.integrations.webhook.target_url) {
+                    fetch('/api/roulette-webhook', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            form_title: data.title || 'Без названия',
+                            client_id: params.get('vk_user_id'),
+                            prize: prizeText,
+                            webhook_url: data.integrations.webhook.target_url,
+                            launch_params: cleanSearch.substring(1)
+                        })
+                    }).catch(e => console.error(e));
+                }
             }, 4000); 
         };
 
