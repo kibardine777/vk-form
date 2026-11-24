@@ -84,7 +84,13 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
         fetch(integrations.webhook.target_url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ form_title: formTitle, client_id: clientId, data: leadData })
+            body: JSON.stringify({
+                form_title: formTitle,
+                client_id: clientId,
+                name: leadData['Имя'] || '',
+                phone: leadData['Телефон'] || '',
+                data: leadData
+            })
         }).catch(e => console.error('Ошибка Webhook:', e));
     }
 
