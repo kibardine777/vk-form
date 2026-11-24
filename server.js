@@ -674,6 +674,41 @@ app.post('/api/vk-message', async (req, res) => {
     }
 });
 
+// Отправка выигрыша Колеса Фортуны в Webhook
+app.post('/api/roulette-webhook', async (req, res) => {
+    const { form_title, client_id, prize, webhook_url, launch_params } = req.body;
+    if (!webhook_url || !prize || !launch_params) return res.status(200).json({ status: 'skip' });
+
+    try {
+        const urlParams = new URLSearchParams(launch_params);
+        const secret = process.env.VK_APP_SECRET;
+        const sign = urlParams.get('sign');
+        const queryParams = [];
+        for (const [key, value] of urlParams.entries()) {
+            if (key.startsWith('vk_')) queryParams.push({ key, value });
+        }
+        const queryString = queryParams.sort((a, b) => a.key.localeCompare(b.key)).map(({ key, value }) => `${key}=${encodeURIComponent(value)}`).join('&');
+        const paramsHash = crypto.createHmac('sha256', secret).update(queryString).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=$/, '');
+        if (paramsHash !== sign) return res.status(403).json({ error: 'Неверная подпись' });
+
+        fetch(webhook_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event: 'roulette_win',
+                form_title: form_title || 'Заявка',
+                client_id: client_id || '',
+                prize: prize
+            })
+        }).catch(e => console.error('Ошибка Webhook Колеса:', e));
+
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('Ошибка /api/roulette-webhook:', err);
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
 // ==========================================
 // ПЛАТЕЖНАЯ СИСТЕМА (ЮKassa)
 // ==========================================
