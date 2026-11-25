@@ -410,7 +410,7 @@ app.post('/api/upload', async (req, res) => {
 
 // 1. Тихое сохранение новой заявки в базу, отмена таймера и отправка писем
 app.post('/api/submit-lead', async (req, res) => {
-    const { vk_group_id, form_id, client_id, data, launch_params, notify_emails, form_title, integrations } = req.body;
+    const { vk_group_id, form_id, client_id, data, launch_params, notify_emails, form_title, integrations, is_test } = req.body;
     if (!vk_group_id || !form_id || !data || !launch_params) return res.status(400).json({ error: 'Bad data' });
     
     try {
@@ -453,17 +453,25 @@ app.post('/api/submit-lead', async (req, res) => {
             }
         }
 
-        // Сохраняем в базу для Excel
-        await pool.query(
-            'INSERT INTO leads (vk_group_id, form_id, data) VALUES ($1, $2, $3)',
-            [vk_group_id, form_id, JSON.stringify(data)]
-        );
+        // Проверяем, является ли запрос тестовым (разрешаем только админам)
+        const role = urlParams.get('vk_viewer_group_role');
+        const isOwner = urlParams.get('vk_viewer_id') === '52069477' || urlParams.get('vk_user_id') === '52069477';
+        const isValidTest = Boolean(is_test && (role === 'admin' || role === 'editor' || isOwner));
+
+        // Сохраняем в базу для Excel ТОЛЬКО реальные заявки
+        if (!isValidTest) {
+            await pool.query(
+                'INSERT INTO leads (vk_group_id, form_id, data) VALUES ($1, $2, $3)',
+                [vk_group_id, form_id, JSON.stringify(data)]
+            );
+        }
 
         // === ОТПРАВКА НА ПОЧТУ ===
         if (notify_emails) {
             const emails = notify_emails.split(',').map(e => e.trim()).filter(e => e);
             if (emails.length > 0) {
-                let emailText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${form_title || 'Заявка'}\n\n`;
+                const testPrefix = isValidTest ? '🧪 [ТЕСТ] ' : '';
+                let emailText = `${testPrefix}🔔 НОВАЯ ЗАЯВКА!\nФорма: ${form_title || 'Заявка'}\n\n`;
                 if (client_id) {
                     emailText += `👤 Отправитель: https://vk.com/id${client_id}\n\n`;
                 }
@@ -475,7 +483,7 @@ app.post('/api/submit-lead', async (req, res) => {
                     transporter.sendMail({
                         from: process.env.SMTP_USER,
                         to: email,
-                        subject: `Лид: ${form_title || 'Заявка'}`,
+                        subject: `${testPrefix}Лид: ${form_title || 'Заявка'}`,
                         text: emailText
                     }).catch(err => console.error(`Ошибка отправки письма на ${email}:`, err));
                 }
