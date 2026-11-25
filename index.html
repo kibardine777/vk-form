@@ -360,10 +360,20 @@
     <p id="userSubtitle" class="desc"></p>
     <form id="clientForm"></form>
     <div id="userPrivacy" class="privacy"></div>
-    <div id="previewNotice" class="hidden" style="margin-top:20px; padding:10px; background:#FFEAA7; border-radius:8px; font-size:12px; color:#D35400; text-align: center;">
-        <b>Режим предпросмотра.</b> Заявки не отправляются.<br><br>
-        <button id="directSuccessPreviewBtn" class="btn-preview" style="background: #FF9F0A; margin-bottom: 10px;">Сразу показать экран благодарности</button><br>
-        <button class="btn-add" onclick="closePreview()" style="margin:0;">Вернуться в редактор</button>
+    <div id="previewNotice" class="hidden" style="margin-top:20px; padding:16px; background:#F0F6FF; border:1px solid #B8D4FF; border-radius:14px; font-size:13px; color:#2C3E50; text-align:left;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <b style="color:#0077FF; font-size:14px;">🧪 Режим предпросмотра</b>
+            <span style="background:#E1EDFF; color:#0077FF; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:600;">Не попадёт в Excel</span>
+        </div>
+        <label style="display:flex; align-items:flex-start; cursor:pointer; font-weight:normal; margin-bottom:12px; background:#fff; padding:10px; border-radius:10px; border:1px solid #DCE1E6;">
+            <input type="checkbox" id="previewSendReal" style="width:18px; height:18px; margin:2px 10px 0 0; flex-shrink:0; cursor:pointer;">
+            <span style="font-size:12px; line-height:1.4; color:#333;">
+                <b>Отправлять тестовые заявки</b><br>
+                <span style="color:#818C99;">Улетят в ВК, на почту, в CRM и Webhook (включая Колесо), но не запишутся в таблицу Excel.</span>
+            </span>
+        </label>
+        <button id="directSuccessPreviewBtn" class="btn-add" style="background:#FFF3CD; color:#856404; margin-bottom:8px; padding:10px; font-size:13px;">👀 Сразу экран благодарности / Колесо</button>
+        <button class="btn-add" onclick="closePreview()" style="margin:0; padding:10px; font-size:13px;">← Вернуться в редактор</button>
     </div>
 </div>
 
@@ -1462,6 +1472,8 @@
             }
         }
 
+        let currentRotation = 0;
+        
         spinBtn.onclick = () => {
             spinBtn.disabled = true;
             spinBtn.innerText = 'Крутится...';
@@ -1481,19 +1493,28 @@
             else randomSector = 5; 
 
             const prizeText = prizes[randomSector];
-            const spinDegrees = 1800 + (360 - (randomSector * 60) - 30); 
+            const baseSpin = Math.ceil(currentRotation / 360) * 360 + 1800;
+            currentRotation = baseSpin + (360 - (randomSector * 60) - 30);
 
-            wheel.style.transform = `rotate(${spinDegrees}deg)`;
+            wheel.style.transform = `rotate(${currentRotation}deg)`;
 
             setTimeout(() => {
                 resultDiv.innerText = `🎁 Вы выиграли: ${prizeText}`;
                 resultDiv.classList.remove('hidden');
                 closeBtn.classList.remove('hidden');
-                spinBtn.classList.add('hidden');
 
-                // Отправляем уведомление в личку ТОЛЬКО в боевом режиме
-                if (!isPreview && data.admin_vk_ids) {
-                    let vkText = `🎰 Пользователь покрутил Колесо Фортуны!\nФорма: ${data.title || 'Без названия'}\n\n🎁 Выигрыш: ${prizeText}`;
+                if (isPreview) {
+                    spinBtn.disabled = false;
+                    spinBtn.innerText = '🎰 Крутить ещё раз (Тест)';
+                } else {
+                    spinBtn.classList.add('hidden');
+                }
+
+                const shouldSendTest = isPreview && document.getElementById('previewSendReal')?.checked;
+
+                // Отправляем уведомление в личку в боевом режиме ИЛИ при включенном тесте
+                if ((!isPreview || shouldSendTest) && data.admin_vk_ids) {
+                    let vkText = `${isPreview ? '🧪 [ТЕСТ] ' : ''}🎰 Пользователь покрутил Колесо Фортуны!\nФорма: ${data.title || 'Без названия'}\n\n🎁 Выигрыш: ${prizeText}`;
                     if (currentUserProfile && currentUserProfile.id) {
                         vkText += `\n👤 Клиент: https://vk.com/id${currentUserProfile.id}`;
                     }
@@ -1506,8 +1527,9 @@
                         }).catch(e => console.error(e));
                     }
                 }
+
                 // Отправляем приз в Webhook, если интеграция включена
-                if (!isPreview && data.integrations && data.integrations.webhook && data.integrations.webhook.enabled && data.integrations.webhook.target_url) {
+                if ((!isPreview || shouldSendTest) && data.integrations && data.integrations.webhook && data.integrations.webhook.enabled && data.integrations.webhook.target_url) {
                     fetch('/api/roulette-webhook', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1775,7 +1797,9 @@
                 }
             }
 
-            if (isPreview) { 
+            const shouldSendTest = isPreview && document.getElementById('previewSendReal')?.checked;
+
+            if (isPreview && !shouldSendTest) { 
                 if (isUserPro && data.roulette_enabled) {
                     showRouletteScreen(data, isPreview);
                 } else {
@@ -1802,7 +1826,7 @@
             try {
                 // 1. Уведомление в личные сообщения ВК (админам)
                 if (data.admin_vk_ids) {
-                    let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
+                    let vkText = `${isPreview ? '🧪 [ТЕСТОВАЯ ЗАЯВКА]\n' : ''}🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
                     if (currentUserProfile && currentUserProfile.id) {
                         vkText += `👤 Отправитель: https://vk.com/id${currentUserProfile.id}\n\n`;
                     }
@@ -1841,7 +1865,8 @@
                         launch_params: cleanSearch.substring(1),
                         notify_emails: data.web3forms_key, 
                         form_title: data.title,
-                        integrations: data.integrations
+                        integrations: data.integrations,
+                        is_test: isPreview
                     })
                 });
                 
