@@ -45,6 +45,10 @@
         .form-card h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--text-main); overflow-wrap: break-word; word-break: break-word; hyphens: auto; }
         .form-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .form-card-actions button { padding: 8px 12px; font-size: 12px; width: auto; flex: 1; margin: 0; border-radius: 8px; }
+        .form-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px 0; }
+        .stat-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 8px; font-size: 12px; font-weight: 500; }
+        .stat-pill.leads { background: #E5F0FF; color: #0077FF; }
+        .stat-pill.abandoned { background: #FFF4E5; color: #B86B00; }
         
         .options-group { text-align: left; margin-bottom: 15px; background: #F2F3F5; padding: 12px; border-radius: 10px; border: 1px solid #DCE1E6;}
         .options-group label { display: flex; align-items: center; font-weight: normal; margin-bottom: 8px; font-size: 14px; cursor: pointer;}
@@ -475,7 +479,8 @@
     const viewerId = params.get('vk_user_id');
     const MY_VK_ID = '52069477';
 
-    let allForms = []; 
+    let allForms = [];
+    let formStats = {};
     let editingFormId = null; 
     let currentUserProfile = null;
     let currentGroupToken = '';
@@ -825,6 +830,7 @@
 
             isUserPro = data.is_pro || false;
             proExpiresAt = data.pro_expires_at || null;
+            formStats = data.stats || {};
             
             if (data && data.fields) {
                 if (data.fields.length === 0) {
@@ -903,9 +909,19 @@
             }
             
             const lockBadge = isLocked ? `<span style="background: #FF3B30; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: bold; margin-left: 6px;">🔒 Неактивна (нужен PRO)</span>` : '';
+            const st = formStats[form.form_id] || { leads: 0, abandoned: 0 };
+            const showAbandoned = form.catch_abandoned || st.abandoned > 0;
+            const statsHtml = `
+                <div class="form-stats">
+                    <span class="stat-pill leads">📩 Заявок: <b>${st.leads}</b></span>
+                    ${showAbandoned ? `<span class="stat-pill abandoned">🧲 Упущено: <b>${st.abandoned}</b></span>` : ''}
+                </div>
+            `;
 
             div.innerHTML = `
                 <h3 style="${isLocked ? 'opacity: 0.7;' : ''}">${escapeHTML(form.internal_name || form.title || 'Форма без названия')} ${lockBadge}</h3>
+                <h3 style="margin-bottom: 8px; ${isLocked ? 'opacity: 0.7;' : ''}">${escapeHTML(form.internal_name || form.title || 'Форма без названия')} ${lockBadge}</h3>
+                ${statsHtml}
                 ${isLocked ? `<p style="font-size: 12px; color: #818C99; margin: 0 0 10px 0;">Форма отключена, так как на бесплатном тарифе доступно только 2 формы. Продлите PRO для активации.</p>` : ''}
                 <div class="form-card-actions" style="margin-bottom: 8px;">
                     <button class="btn-main" onclick="${isLocked ? `showNotify('Продлите тариф PRO, чтобы редактировать эту форму!', true)` : `openEditor('${escapeHTML(form.form_id)}')`}" style="${isLocked ? 'opacity: 0.5; filter: grayscale(1);' : ''}">⚙️ Ред.</button>
