@@ -919,7 +919,6 @@
             `;
 
             div.innerHTML = `
-                <h3 style="${isLocked ? 'opacity: 0.7;' : ''}">${escapeHTML(form.internal_name || form.title || 'Форма без названия')} ${lockBadge}</h3>
                 <h3 style="margin-bottom: 8px; ${isLocked ? 'opacity: 0.7;' : ''}">${escapeHTML(form.internal_name || form.title || 'Форма без названия')} ${lockBadge}</h3>
                 ${statsHtml}
                 ${isLocked ? `<p style="font-size: 12px; color: #818C99; margin: 0 0 10px 0;">Форма отключена, так как на бесплатном тарифе доступно только 2 формы. Продлите PRO для активации.</p>` : ''}
