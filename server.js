@@ -604,18 +604,23 @@ app.all('/api/export-leads', async (req, res) => {
         leads.rows.forEach(row => {
             Object.keys(row.data).forEach(k => allKeys.add(k));
         });
+
+        // Фиксируем порядок базовых колонок: Имя -> Фамилия -> Телефон -> остальные вопросы
+        const priorityKeys = ['Имя', 'Фамилия', 'Телефон'].filter(k => allKeys.has(k));
+        const otherKeys = Array.from(allKeys).filter(k => !priorityKeys.includes(k));
+        const orderedKeys = [...priorityKeys, ...otherKeys];
         
-        const headers = ['Дата', ...Array.from(allKeys)];
+        const headers = ['Дата', ...orderedKeys];
         
         let csvContent = '\uFEFF'; 
         csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
 
         leads.rows.forEach(row => {
             const dateObj = new Date(row.created_at);
-            const dateStr = dateObj.toLocaleString('ru-RU'); 
+            const dateStr = dateObj.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }); 
             
             const rowData = [dateStr];
-            Array.from(allKeys).forEach(key => {
+            orderedKeys.forEach(key => {
                 let val = row.data[key] || '';
                 val = String(val).replace(/"/g, '""'); 
                 
