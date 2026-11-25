@@ -262,7 +262,7 @@
     <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy" maxlength="300">
 
     <h3 style="font-size: 16px; text-align: left; margin-top: 20px;">Настройка полей:</h3>
-    <p class="desc" style="margin-bottom: 10px;">Поля "Имя" и "Телефон" встроены по умолчанию.</p>
+    <p class="desc" style="margin-bottom: 10px;">Поля "Имя", "Фамилия" и "Телефон" встроены по умолчанию.</p>
     <div id="fieldsList"></div>
     <button class="btn-add" onclick="addField()">+ Добавить свой вопрос</button>
     
@@ -392,6 +392,7 @@
     <div id="rouletteResult" class="hidden" style="margin-top: 15px; font-size: 16px; font-weight: bold; color: #4BB34B;"></div>
     
     <button id="rouletteCloseBtn" class="btn-add hidden" style="margin-top: 15px;">Понятно, вернуться в группу</button>
+    <button id="previewCloseRouletteBtn" class="btn-add hidden" onclick="closePreview()" style="margin-top: 10px;">← Вернуться в редактор</button>
 </div>
     
 <div id="successModal" class="container hidden" style="margin: auto; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
@@ -1443,9 +1444,11 @@
         const spinBtn = document.getElementById('spinBtn');
         const resultDiv = document.getElementById('rouletteResult');
         const closeBtn = document.getElementById('rouletteCloseBtn');
+        const previewCloseBtn = document.getElementById('previewCloseRouletteBtn');
         
         resultDiv.classList.add('hidden');
         closeBtn.classList.add('hidden');
+        if (previewCloseBtn) previewCloseBtn.classList.toggle('hidden', !isPreview);
         spinBtn.classList.remove('hidden');
         spinBtn.disabled = false;
         
@@ -1642,6 +1645,8 @@
         form.innerHTML += `
             <label>Ваше имя</label>
             <input type="text" name="Имя" id="clientNameInput" required maxlength="100">
+            <label>Ваша фамилия</label>
+            <input type="text" name="Фамилия" id="clientLastNameInput" required maxlength="100">
             <label>Номер телефона</label>
             <input type="tel" name="Телефон" placeholder="+7 (___) ___-__-__" required maxlength="20" oninput="formatPhone(event)">
         `;
@@ -1709,11 +1714,16 @@
                 .then(info => { 
                     currentUserProfile = info; 
                     const nameInp = document.getElementById('clientNameInput');
-                    if (nameInp && !nameInp.value) nameInp.value = `${info.first_name} ${info.last_name}`; 
+                    const lastNameInp = document.getElementById('clientLastNameInput');
+                    if (nameInp && !nameInp.value) nameInp.value = info.first_name || ''; 
+                    if (lastNameInp && !lastNameInp.value) lastNameInp.value = info.last_name || ''; 
                 })
                 .catch(e => console.log("Пропуск автозаполнения имени на ПК"));
         } else if (currentUserProfile) {
-            document.getElementById('clientNameInput').value = `${currentUserProfile.first_name} ${currentUserProfile.last_name}`;
+            const nameInp = document.getElementById('clientNameInput');
+            const lastNameInp = document.getElementById('clientLastNameInput');
+            if (nameInp) nameInp.value = currentUserProfile.first_name || '';
+            if (lastNameInp) lastNameInp.value = currentUserProfile.last_name || '';
         }
 
         // ВЫНОСИМ ФУНКЦИЮ ВЫШЕ, ЧТОБЫ ЕЁ МОГЛА ВЫЗЫВАТЬ НОВАЯ КНОПКА
