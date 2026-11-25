@@ -52,6 +52,17 @@ pool.query(`
 `).then(() => console.log('Таблица forms готова к работе'))
   .catch(err => console.error('Ошибка создания таблицы:', err));
 
+pool.query(`
+    CREATE TABLE IF NOT EXISTS abandoned_leads (
+        id SERIAL PRIMARY KEY,
+        vk_group_id VARCHAR(255),
+        form_id VARCHAR(255),
+        client_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+`).then(() => console.log('Таблица abandoned_leads готова к работе'))
+  .catch(err => console.error('Ошибка создания таблицы abandoned_leads:', err));
+
 // ==========================================
 // 2. Подключение к S3 Хранилищу (Timeweb)
 // ==========================================
@@ -298,6 +309,29 @@ app.all('/api/load', async (req, res) => {
             });
         }
 
+// Подгружаем статистику по формам только для админов
+        if (isAdmin) {
+            const leadsStats = await pool.query(
+                'SELECT form_id, COUNT(*)::int AS cnt FROM leads WHERE vk_group_id = $1 GROUP BY form_id',
+                [gid]
+            );
+            const abandonedStats = await pool.query(
+                'SELECT form_id, COUNT(*)::int AS cnt FROM abandoned_leads WHERE vk_group_id = $1 GROUP BY form_id',
+                [gid]
+            );
+
+            const stats = {};
+            leadsStats.rows.forEach(r => {
+                if (!stats[r.form_id]) stats[r.form_id] = { leads: 0, abandoned: 0 };
+                stats[r.form_id].leads = r.cnt;
+            });
+            abandonedStats.rows.forEach(r => {
+                if (!stats[r.form_id]) stats[r.form_id] = { leads: 0, abandoned: 0 };
+                stats[r.form_id].abandoned = r.cnt;
+            });
+            row.stats = stats;
+        }
+        
         return res.status(200).json(row);
     } catch (err) {
         console.error('Ошибка загрузки:', err);
@@ -526,6 +560,11 @@ app.post('/api/track-open', (req, res) => {
     if (!abandonedTimers.has(timerKey)) {
         const timer = setTimeout(async () => {
             try {
+                // Записываем упущенного лида в БД для статистики
+                await pool.query(
+                    'INSERT INTO abandoned_leads (vk_group_id, form_id, client_id) VALUES ($1, $2, $3)',
+                    [vk_group_id, form_id, String(client_id)]
+                );
                 // ДОСТАЕМ ТОКЕН НАПРЯМУЮ ИЗ БД
                 const dbRes = await pool.query('SELECT fields FROM forms WHERE vk_group_id = $1', [vk_group_id]);
                 if (dbRes.rows.length === 0) return;
