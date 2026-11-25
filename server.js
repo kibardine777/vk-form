@@ -88,6 +88,7 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
                 form_title: formTitle,
                 client_id: clientId,
                 name: leadData['Имя'] || '',
+                last_name: leadData['Фамилия'] || '',
                 phone: leadData['Телефон'] || '',
                 data: leadData
             })
@@ -155,6 +156,7 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
 
                 const entityType = integrations.bitrix24.entity_type || 'lead';
                 const clientName = leadData['Имя'] || 'Клиент ВК';
+                const clientLastName = leadData['Фамилия'] || '';
                 const clientPhone = leadData['Телефон'] || '';
                 let entityId = null;
 
@@ -166,6 +168,7 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
                         body: JSON.stringify({
                             fields: {
                                 NAME: clientName,
+                                LAST_NAME: clientLastName,
                                 PHONE: [{ "VALUE": clientPhone, "VALUE_TYPE": "WORK" }]
                             }
                         })
@@ -196,6 +199,7 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
                             fields: {
                                 TITLE: `Заявка: ${formTitle}`,
                                 NAME: clientName,
+                                LAST_NAME: clientLastName,
                                 PHONE: [{ "VALUE": clientPhone, "VALUE_TYPE": "WORK" }],
                                 COMMENTS: textMessage
                             }
@@ -240,6 +244,7 @@ async function processIntegrations(leadData, formTitle, clientId, integrations) 
                 _embedded: {
                     contacts: [{
                         first_name: leadData['Имя'] || 'Клиент ВК',
+                        last_name: leadData['Фамилия'] || '',
                         custom_fields_values: [{
                             field_code: 'PHONE',
                             values: [{ value: leadData['Телефон'] || '' }]
